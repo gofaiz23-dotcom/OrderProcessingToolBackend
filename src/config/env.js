@@ -1,0 +1,36 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const requiredEnv = [
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_TOKEN_URI',
+  'GOOGLE_AUTH_URI',
+  'GOOGLE_CERTS_URL',
+  'GOOGLE_REDIRECT_URI',
+  'GOOGLE_REFRESH_TOKEN',
+  'GMAIL_USER_EMAIL',
+];
+
+requiredEnv.forEach((key) => {
+  if (!process.env[key]) {
+    console.warn(`[env] Missing ${key}. Some Gmail features may not work.`);
+  }
+});
+
+export const config = {
+  port: process.env.PORT || 3000,
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    projectId: process.env.GOOGLE_PROJECT_ID,
+    authUri: process.env.GOOGLE_AUTH_URI,
+    tokenUri: process.env.GOOGLE_TOKEN_URI,
+    certsUrl: process.env.GOOGLE_CERTS_URL,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI,
+    refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+    userEmail: process.env.GMAIL_USER_EMAIL,
+  },
+};
+
