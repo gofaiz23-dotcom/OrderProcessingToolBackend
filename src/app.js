@@ -1,9 +1,25 @@
 import express from 'express';
+import cors from 'cors';
 import emailRoutes from './routes/emailRoutes.js';
 import googleAuthRoutes from './routes/googleAuthRoutes.js';
+import { config } from './config/env.js';
 
 const app = express();
 const API_BASE_PATH = '/api/v1';
+const allowedOrigins = config.cors.allowedOrigins;
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  }),
+);
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));

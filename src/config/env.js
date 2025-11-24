@@ -19,6 +19,14 @@ requiredEnv.forEach((key) => {
   }
 });
 
+const parseAllowedOrigins = (value) =>
+  value
+    ? value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : [];
+
 export const config = {
   port: process.env.PORT || 3000,
   google: {
@@ -31,6 +39,9 @@ export const config = {
     redirectUri: process.env.GOOGLE_REDIRECT_URI,
     refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
     userEmail: process.env.GMAIL_USER_EMAIL,
+  },
+  cors: {
+    allowedOrigins: parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS),
   },
 };
 
