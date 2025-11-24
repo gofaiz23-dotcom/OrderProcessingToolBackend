@@ -9,8 +9,8 @@ const requiredEnv = [
   'GOOGLE_AUTH_URI',
   'GOOGLE_CERTS_URL',
   'GOOGLE_REDIRECT_URI',
-  'GOOGLE_REFRESH_TOKEN',
   'GMAIL_USER_EMAIL',
+  'DATABASE_URL',
 ];
 
 requiredEnv.forEach((key) => {
@@ -29,6 +29,9 @@ const parseAllowedOrigins = (value) =>
 
 export const config = {
   port: process.env.PORT || 3000,
+  database: {
+    url: process.env.DATABASE_URL,
+  },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -37,7 +40,6 @@ export const config = {
     tokenUri: process.env.GOOGLE_TOKEN_URI,
     certsUrl: process.env.GOOGLE_CERTS_URL,
     redirectUri: process.env.GOOGLE_REDIRECT_URI,
-    refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
     userEmail: process.env.GMAIL_USER_EMAIL,
   },
   cors: {

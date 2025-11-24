@@ -5,12 +5,13 @@ const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
 ];
 
-export const buildGoogleAuthUrl = () =>
+export const buildGoogleAuthUrl = ({ state } = {}) =>
   googleAuthClient.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: true,
     scope: GMAIL_SCOPES,
+    state,
   });
 
 export const exchangeCodeForTokens = async (code) => {
@@ -22,5 +23,4 @@ export const exchangeCodeForTokens = async (code) => {
 
   return tokens;
 };
-
 
