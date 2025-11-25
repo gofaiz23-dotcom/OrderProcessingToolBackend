@@ -122,19 +122,22 @@ const buildEmailBody = ({ to, subject, text, html, attachments }) => {
     `Subject: ${subject}`,
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: 7bit',
-    '',
-    text || '',
-    '',
   ];
 
-  if (html) {
+  // If both text and html exist, wrap them in multipart/alternative
+  if (text && html) {
     const alternativeBoundary = `alt-${Date.now()}`;
     lines.push(`--${boundary}`);
     lines.push(`Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`);
     lines.push('');
+    // Add text/plain part
+    lines.push(`--${alternativeBoundary}`);
+    lines.push('Content-Type: text/plain; charset="UTF-8"');
+    lines.push('Content-Transfer-Encoding: 7bit');
+    lines.push('');
+    lines.push(text);
+    lines.push('');
+    // Add text/html part
     lines.push(`--${alternativeBoundary}`);
     lines.push('Content-Type: text/html; charset="UTF-8"');
     lines.push('Content-Transfer-Encoding: 7bit');
@@ -142,8 +145,25 @@ const buildEmailBody = ({ to, subject, text, html, attachments }) => {
     lines.push(html);
     lines.push('');
     lines.push(`--${alternativeBoundary}--`);
+  } else if (html) {
+    // Only HTML
+    lines.push(`--${boundary}`);
+    lines.push('Content-Type: text/html; charset="UTF-8"');
+    lines.push('Content-Transfer-Encoding: 7bit');
+    lines.push('');
+    lines.push(html);
+    lines.push('');
+  } else if (text) {
+    // Only text
+    lines.push(`--${boundary}`);
+    lines.push('Content-Type: text/plain; charset="UTF-8"');
+    lines.push('Content-Transfer-Encoding: 7bit');
+    lines.push('');
+    lines.push(text);
+    lines.push('');
   }
 
+  // Add attachments
   (attachments || []).forEach((file) => {
     lines.push(`--${boundary}`);
     lines.push(`Content-Type: ${file.mimeType}`);
