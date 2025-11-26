@@ -14,4 +14,11 @@ model GoogleAuthRefreshToken {
   @@map("Google_Auth_Refresh_Token")
 }
 
+model Order {
+  id                  Int    @id @default(autoincrement())
+  orderOnMarketPlace  String @map("order_on_market_place")
+  jsonb               Json
+
+  @@map("order")
+}
 
