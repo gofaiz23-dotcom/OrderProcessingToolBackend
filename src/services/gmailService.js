@@ -61,69 +61,39 @@ const extractMessageContent = async (messageId, payload) => {
   return { textBody, htmlBody, attachments };
 };
 
-// Helper function to add delay between API calls to avoid rate limiting
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const fetchMessageDetails = async (messages = []) => {
   if (!messages.length) return [];
 
-  const results = [];
-  
-  // Process messages sequentially with delay to avoid rate limiting
-  // Gmail API allows 250 quota units per 100 seconds, each messages.get = 5 units
-  // So max 50 requests per 100 seconds = 1 request per 2 seconds minimum
-  for (let i = 0; i < messages.length; i++) {
-    const { id } = messages[i];
-    
-    // Add delay between requests (except for the first one)
-    // 2 seconds delay = safe rate (50 requests per 100 seconds)
-    if (i > 0) {
-      await delay(2000); // 2 seconds between requests
-    }
-    
-    try {
-      const { data } = await gmail.users.messages.get({
-        userId: 'me',
-        id,
-        format: 'full',
-      });
+  const detailPromises = messages.map(async ({ id }) => {
+    const { data } = await gmail.users.messages.get({
+      userId: 'me',
+      id,
+      format: 'full',
+    });
 
-      const headers =
-        data.payload?.headers?.reduce((acc, header) => {
-          if (HEADER_WHITELIST.includes(header.name)) {
-            acc[header.name] = header.value;
-          }
-          return acc;
-        }, {}) ?? {};
+    const headers =
+      data.payload?.headers?.reduce((acc, header) => {
+        if (HEADER_WHITELIST.includes(header.name)) {
+          acc[header.name] = header.value;
+        }
+        return acc;
+      }, {}) ?? {};
 
-      const { textBody, htmlBody, attachments } = await extractMessageContent(id, data.payload);
+    const { textBody, htmlBody, attachments } = await extractMessageContent(id, data.payload);
 
-      results.push({
-        id: data.id,
-        threadId: data.threadId,
-        snippet: data.snippet,
-        internalDate: data.internalDate,
-        headers,
-        textBody,
-        htmlBody,
-        attachments,
-      });
-    } catch (error) {
-      // If rate limited, wait longer and retry
-      if (error.code === 429) {
-        const retryAfter = error.response?.headers?.['retry-after'] || 15;
-        console.warn(`Rate limited. Waiting ${retryAfter} seconds before retry...`);
-        await delay(retryAfter * 1000);
-        // Retry this message
-        i--;
-        continue;
-      }
-      // For other errors, skip this message and continue
-      console.error(`Error fetching message ${id}:`, error.message);
-    }
-  }
+    return {
+      id: data.id,
+      threadId: data.threadId,
+      snippet: data.snippet,
+      internalDate: data.internalDate,
+      headers,
+      textBody,
+      htmlBody,
+      attachments,
+    };
+  });
 
-  return results;
+  return Promise.all(detailPromises);
 };
 
 const listMessages = async ({ labelIds, maxResults }) => {
