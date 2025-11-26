@@ -5,7 +5,9 @@ import googleAuthRoutes from './routes/googleAuthRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import AuthShippingRoutes from './routes/Logistics/AuthShippingRoutes.js';
 import RateQuoteRoutes from './routes/Logistics/RateQuoteRoutes.js';
+import BillOfLadingRoutes from './routes/Logistics/BillOfLadingRoutes.js';
 import { config } from './config/env.js';
+import { errorHandler } from './utils/error.js';
 
 const app = express();
 const API_BASE_PATH = '/api/v1';
@@ -34,13 +36,9 @@ app.use(`${API_BASE_PATH}/auth`, googleAuthRoutes);
 app.use(`${API_BASE_PATH}/orders`, orderRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, AuthShippingRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, RateQuoteRoutes);
+app.use(`${API_BASE_PATH}/Logistics`, BillOfLadingRoutes);
 
-app.use((err, req, res, next) => {
-  console.error(err);
-  res
-    .status(err.status || 500)
-    .json({ message: err.message || 'Internal server error' });
-});
+app.use(errorHandler);
 
 export default app;
 

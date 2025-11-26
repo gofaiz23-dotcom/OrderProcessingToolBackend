@@ -1,30 +1,30 @@
 import { getEndpointConfig } from '../../config/ShippingDB.js';
 import { NotFoundError, AppError, ErrorMessages } from '../../utils/error.js';
 
-export const createRateQuote = async (companyName, bearerToken, requestBody) => {
-  // Get rate quote endpoint configuration
-  const rateQuoteConfig = getEndpointConfig(companyName, 'createRateQuote');
+export const createBillOfLading = async (companyName, bearerToken, requestBody) => {
+  // Get bill of lading endpoint configuration
+  const bolConfig = getEndpointConfig(companyName, 'createBillOfLading');
   
-  if (!rateQuoteConfig) {
-    throw new NotFoundError(ErrorMessages.ENDPOINT_NOT_FOUND('createRateQuote'));
+  if (!bolConfig) {
+    throw new NotFoundError(ErrorMessages.ENDPOINT_NOT_FOUND('createBillOfLading'));
   }
 
-  if (!rateQuoteConfig.url) {
+  if (!bolConfig.url) {
     throw new NotFoundError(ErrorMessages.CONFIG_MISSING(companyName));
   }
 
   // Merge bodyTemplate with user's request body
-  const mergedBody = mergeBodyWithTemplate(rateQuoteConfig.bodyTemplate, requestBody);
+  const mergedBody = mergeBodyWithTemplate(bolConfig.bodyTemplate, requestBody);
 
   // Prepare headers with Bearer token
   const headers = {
-    ...rateQuoteConfig.headers,
+    ...bolConfig.headers,
     Authorization: `Bearer ${bearerToken}`,
   };
 
   // Make API call to shipping company
-  const response = await fetch(rateQuoteConfig.url, {
-    method: rateQuoteConfig.method,
+  const response = await fetch(bolConfig.url, {
+    method: bolConfig.method,
     headers,
     body: JSON.stringify(mergedBody),
   });
