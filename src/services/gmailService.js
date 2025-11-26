@@ -1,7 +1,7 @@
 import { gmail, googleUserEmail } from '../config/googleClient.js';
 
 const DEFAULT_MAX_RESULTS = 20;
-const HEADER_WHITELIST = ['From', 'To', 'Subject', 'Date'];
+const HEADER_WHITELIST = ['From', 'To', 'Subject', 'Date', 'Cc', 'Bcc'];
 
 const decodeBase64Url = (data) =>
   Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
@@ -113,16 +113,27 @@ export const getInboxMessages = async (maxResults) =>
 export const getSentMessages = async (maxResults) =>
   listMessages({ labelIds: ['SENT'], maxResults });
 
-const buildEmailBody = ({ to, subject, text, html, attachments }) => {
+const buildEmailBody = ({ to, cc, bcc, subject, text, html, attachments }) => {
   const boundary = `mixed-${Date.now()}`;
   const lines = [
     'MIME-Version: 1.0',
     `To: ${to}`,
     `From: ${googleUserEmail}`,
     `Subject: ${subject}`,
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    '',
   ];
+  
+  // Add CC header if present
+  if (cc && cc.length > 0) {
+    lines.push(`Cc: ${cc}`);
+  }
+  
+  // Add BCC header if present
+  if (bcc && bcc.length > 0) {
+    lines.push(`Bcc: ${bcc}`);
+  }
+  
+  lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+  lines.push('');
 
   // If both text and html exist, wrap them in multipart/alternative
   if (text && html) {
@@ -179,8 +190,8 @@ const buildEmailBody = ({ to, subject, text, html, attachments }) => {
   return Buffer.from(lines.join('\r\n')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-export const sendGmailMessage = async ({ to, subject, text, html, attachments }) => {
-  const raw = buildEmailBody({ to, subject, text, html, attachments });
+export const sendGmailMessage = async ({ to, cc, bcc, subject, text, html, attachments }) => {
+  const raw = buildEmailBody({ to, cc, bcc, subject, text, html, attachments });
 
   return gmail.users.messages.send({
     userId: 'me',

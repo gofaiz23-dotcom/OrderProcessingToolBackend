@@ -99,7 +99,7 @@ export const getSent = async (req, res, next) => {
 export const sendEmail = async (req, res, next) => {
   try {
     await checkRefreshToken();
-    const { to, subject, text, html } = req.body;
+    const { to, cc, bcc, subject, text, html } = req.body;
 
     if (!to || !subject || !(text || html)) {
       return res.status(400).json({
@@ -113,7 +113,7 @@ export const sendEmail = async (req, res, next) => {
       contentBase64: file.buffer.toString('base64'),
     }));
 
-    const response = await sendGmailMessage({ to, subject, text, html, attachments });
+    const response = await sendGmailMessage({ to, cc, bcc, subject, text, html, attachments });
 
     res.status(201).json({
       message: 'Email sent successfully',
