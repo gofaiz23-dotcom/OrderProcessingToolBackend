@@ -3,6 +3,8 @@ import cors from 'cors';
 import emailRoutes from './routes/emailRoutes.js';
 import googleAuthRoutes from './routes/googleAuthRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import AuthShippingRoutes from './routes/Logistics/AuthShippingRoutes.js';
+import RateQuoteRoutes from './routes/Logistics/RateQuoteRoutes.js';
 import { config } from './config/env.js';
 
 const app = express();
@@ -30,6 +32,8 @@ app.get(`${API_BASE_PATH}/health`, (req, res) => res.json({ status: 'ok' }));
 app.use(`${API_BASE_PATH}/emails`, emailRoutes);
 app.use(`${API_BASE_PATH}/auth`, googleAuthRoutes);
 app.use(`${API_BASE_PATH}/orders`, orderRoutes);
+app.use(`${API_BASE_PATH}/Logistics`, AuthShippingRoutes);
+app.use(`${API_BASE_PATH}/Logistics`, RateQuoteRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
