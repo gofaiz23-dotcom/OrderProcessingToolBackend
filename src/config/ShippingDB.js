@@ -97,6 +97,8 @@ export const estes = [
                     pieces: null, // number
                     packagingType: null, // string
                     classification: null, // string
+                    nmfc: null, // string
+                    nmfcSub: null, // string
                     isHazardous: null, // boolean
                   },
                 ],
