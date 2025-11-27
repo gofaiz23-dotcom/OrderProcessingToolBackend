@@ -48,5 +48,8 @@ export const config = {
   uploads: {
     path: process.env.UPLOADS_PATH || '',
   },
+  shipping: {
+    statusUpdateTime: process.env.SHIPPING_STATUS_UPDATE_TIME || '5m',
+  },
 };
 

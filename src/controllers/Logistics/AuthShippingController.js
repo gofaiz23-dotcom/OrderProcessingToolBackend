@@ -1,5 +1,6 @@
 import { authenticateShippingCompany } from '../../services/Logistics/AuthShippingService.js';
 import { getEndpointConfig } from '../../config/ShippingDB.js';
+import { upsertShippingCompanyToken } from '../../models/Logistics/shippingCompanyTokenModel.js';
 import { ValidationError, NotFoundError, ErrorMessages, asyncHandler } from '../../utils/error.js';
 
 export const authShippingCompany = asyncHandler(async (req, res, next) => {
@@ -28,6 +29,14 @@ export const authShippingCompany = asyncHandler(async (req, res, next) => {
     username,
     password
   );
+
+  // Extract token from response (adjust based on actual API response structure)
+  const token = authResponse.token || authResponse.accessToken || authResponse.access_token || authResponse.data?.token;
+  
+  // Save/update token in database
+  if (token) {
+    await upsertShippingCompanyToken(shippingCompanyName, token);
+  }
 
   res.status(200).json({
     message: `Authentication successful for ${shippingCompanyName}`,

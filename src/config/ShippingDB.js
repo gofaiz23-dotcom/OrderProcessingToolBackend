@@ -407,6 +407,31 @@ export const estes = [
       },
     },
   },
+  {
+    shippingCompanyName: estesCommon.shippingCompanyName,
+    description: estesCommon.description,
+    jsonb: {
+      baseUrl: estesCommon.baseUrl,
+      getShipmentHistory: {
+        url: `${estesCommon.baseUrl}/v1/shipments/history`,
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: estesCommon.apikey,
+          Authorization: 'Bearer ', // Will be replaced with user's token
+        },
+        queryParameters: {
+          pro: null, // number (10 digits) - PRO tracking number
+          po: null, // string (1-15 chars) - Purchase Order number
+          bol: null, // string (1-25 chars) - Bill Of Lading number
+          pur: null, // string (1-10 chars) - Pickup Request number
+          ldn: null, // string (1-25 chars) - Load number
+          exl: null, // string (1-25 chars) - EXLA-ID number
+          interlinePro: null, // string (1-15 chars) - Interline PRO (From/To)
+        },
+      },
+    },
+  },
 ];
 
 // Helper function to get endpoint config by company name and endpoint name
