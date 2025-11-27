@@ -157,12 +157,20 @@ export const updateShipmentStatuses = async () => {
   try {
     console.log('[Status Update] Starting shipment status update...');
 
-    // Get all logistics shipped orders
+    // Get only non-delivered orders (skip 'delivered' status to avoid unnecessary updates)
     const orders = await prisma.logisticsShippedOrders.findMany({
       where: {
         status: {
-          not: 'delivered', // Skip already delivered orders
+          not: 'delivered', // Only process orders that are NOT delivered
         },
+      },
+      select: {
+        id: true,
+        status: true,
+        bolResponseJsonb: true,
+        pickupResponseJsonb: true,
+        rateQuotesResponseJsonb: true,
+        ordersJsonb: true,
       },
     });
 
@@ -208,7 +216,7 @@ export const updateShipmentStatuses = async () => {
             data: { status: newStatus },
           });
           updatedCount++;
-          console.log(`[Status Update] Updated order ID ${order.id} status: ${order.status} -> ${newStatus}`);
+          // console.log(`[Status Update] Updated order ID ${order.id} status: ${order.status} -> ${newStatus}`);
         }
       } catch (error) {
         errorCount++;
