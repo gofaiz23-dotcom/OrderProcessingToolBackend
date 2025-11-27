@@ -60,3 +60,21 @@ export const updateLogisticsShippedOrdersStatus = async (ids, status) => {
   });
 };
 
+export const updateLogisticsShippedOrdersStatusMultiple = async (updates) => {
+  // Updates is an array of { id, status } objects
+  // Use Promise.all to update each order individually
+  const results = await Promise.all(
+    updates.map(async ({ id, status }) => {
+      return await prisma.logisticsShippedOrders.update({
+        where: { id: parseInt(id) },
+        data: { status: status.trim() },
+      });
+    })
+  );
+  
+  return {
+    count: results.length,
+    updates: results,
+  };
+};
+

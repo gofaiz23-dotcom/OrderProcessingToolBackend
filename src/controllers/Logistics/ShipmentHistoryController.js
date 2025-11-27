@@ -1,6 +1,6 @@
 import { getShipmentHistory } from '../../services/Logistics/ShipmentHistoryService.js';
 import { getEndpointConfig } from '../../config/ShippingDB.js';
-import { updateLogisticsShippedOrdersStatus } from '../../models/Logistics/logisticsShippedOrdersModel.js';
+import { updateLogisticsShippedOrdersStatus, updateLogisticsShippedOrdersStatusMultiple } from '../../models/Logistics/logisticsShippedOrdersModel.js';
 import { AuthenticationError, NotFoundError, ValidationError, ErrorMessages, asyncHandler } from '../../utils/error.js';
 
 export const getShipmentHistoryHandler = asyncHandler(async (req, res, next) => {
@@ -49,12 +49,38 @@ export const getShipmentHistoryHandler = asyncHandler(async (req, res, next) => 
 });
 
 // PUT - Update status for single or multiple logistics shipped orders
+// Supports two formats:
+// 1. Single status for single/multiple IDs: { "ids": 1, "status": "delivered" } or { "ids": [1,2,3], "status": "delivered" }
+// 2. Multiple IDs with different statuses: { "updates": [{ "id": 1, "status": "delivered" }, { "id": 2, "status": "in_transit" }] }
 export const updateShipmentStatusHandler = asyncHandler(async (req, res, next) => {
-  const { ids, status } = req.body;
+  const { ids, status, updates } = req.body;
 
-  // Validate required fields
+  // Check if using the new format (multiple IDs with different statuses)
+  if (updates && Array.isArray(updates) && updates.length > 0) {
+    // Validate updates array
+    for (const update of updates) {
+      if (!update.id || update.id === null || update.id === undefined) {
+        throw new ValidationError('Each update object must have an "id" field');
+      }
+      if (!update.status || typeof update.status !== 'string' || update.status.trim() === '') {
+        throw new ValidationError('Each update object must have a non-empty "status" field');
+      }
+    }
+
+    // Update multiple orders with different statuses
+    const result = await updateLogisticsShippedOrdersStatusMultiple(updates);
+
+    res.status(200).json({
+      message: `Status updated successfully for ${result.count} order(s)`,
+      count: result.count,
+      updates: updates.map(u => ({ id: u.id, status: u.status.trim() })),
+    });
+    return;
+  }
+
+  // Legacy format: single status for single/multiple IDs
   if (!ids || (Array.isArray(ids) && ids.length === 0)) {
-    throw new ValidationError('ids field is required and must be a single ID or an array of IDs');
+    throw new ValidationError('Either "ids" and "status" fields, or "updates" array is required');
   }
 
   if (!status || typeof status !== 'string' || status.trim() === '') {

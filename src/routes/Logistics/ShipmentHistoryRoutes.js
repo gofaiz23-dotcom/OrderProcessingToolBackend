@@ -7,7 +7,8 @@ const router = Router();
 router.get('/shipment-history', getShipmentHistoryHandler);
 
 // PUT /api/v1/Logistics/shipment-status - Update status for single or multiple orders
-// Body: { "ids": 1 } or { "ids": [1, 2, 3], "status": "delivered" }
+// Format 1: Single status for single/multiple IDs: { "ids": 1, "status": "delivered" } or { "ids": [1,2,3], "status": "delivered" }
+// Format 2: Multiple IDs with different statuses: { "updates": [{ "id": 1, "status": "delivered" }, { "id": 2, "status": "in_transit" }] }
 router.put('/shipment-status', updateShipmentStatusHandler);
 
 export default router;
