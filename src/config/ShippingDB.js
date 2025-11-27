@@ -234,6 +234,177 @@ export const estes = [
       },
     },
   },
+  {
+    shippingCompanyName: estesCommon.shippingCompanyName,
+    description: estesCommon.description,
+    jsonb: {
+      baseUrl: estesCommon.baseUrl,
+      createPickupRequest: {
+        url: `${estesCommon.baseUrl}/v1/pickup-request`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: estesCommon.apikey,
+          Authorization: 'Bearer ', // Will be replaced with user's token
+        },
+        bodyTemplate: {
+          shipper: {
+            shipperName: null, // string
+            accountCode: null, // string
+            shipperAddress: {
+              addressInfo: {
+                addressLine1: null, // string
+                addressLine2: null, // string
+                city: null, // string
+                stateProvince: null, // string
+                postalCode: null, // string
+                postalCode4: null, // string
+                countryAbbrev: null, // string (e.g., "USA")
+              },
+            },
+            shipperContacts: {
+              shipperContact: [
+                {
+                  contactInfo: {
+                    name: {
+                      firstName: null, // string
+                      middleName: null, // string
+                      lastName: null, // string
+                    },
+                    email: null, // string
+                    phone: {
+                      areaCode: null, // number
+                      number: null, // number
+                      extension: null, // number
+                    },
+                    fax: {
+                      areaCode: null, // number
+                      number: null, // number
+                    },
+                    receiveNotifications: null, // string (e.g., "Y", "N")
+                    notificationMethod: null, // string (e.g., "EMAIL")
+                  },
+                },
+              ],
+            },
+          },
+          requestAction: null, // string (e.g., "CREATE")
+          paymentTerms: null, // string (e.g., "PREPAID")
+          pickupDate: null, // string (YYYY-MM-DD)
+          pickupStartTime: null, // string (HH:MM)
+          pickupEndTime: null, // string (HH:MM)
+          totalPieces: null, // string or number
+          totalWeight: null, // string or number
+          totalHandlingUnits: null, // string or number
+          hazmatFlag: null, // string (e.g., "Y", "N")
+          expeditedCode: null, // string
+          whoRequested: null, // string (e.g., "THIRD_PARTY")
+          trailer: null, // array
+          referenceNumbers: {
+            referenceNumber: [
+              {
+                referenceInfo: {
+                  type: null, // string (e.g., "PRO", "PON", "BOL", "EUI", "LDN", "SNO")
+                  value: null, // string
+                  required: null, // string (e.g., "Y", "N")
+                  totalPieces: null, // number
+                  totalWeight: null, // number
+                },
+              },
+            ],
+          },
+          commodities: {
+            commodity: [
+              {
+                commodityInfo: {
+                  code: null, // string
+                  packageCode: null, // string (e.g., "PAT")
+                  description: null, // string
+                  hazmat: {
+                    hazmatCode: null, // string
+                    hazmatFlag: null, // string (e.g., "Y", "N")
+                  },
+                  pieces: null, // string or number
+                  weight: null, // string or number
+                  nmfcNumber: null, // string
+                  nmfcSubNumber: null, // string
+                },
+              },
+            ],
+          },
+          comments: {
+            comment: [
+              {
+                commentInfo: {
+                  type: null, // string (e.g., "PICKUP_INSTRUCTIONS")
+                  commentText: null, // string
+                },
+              },
+            ],
+          },
+          consignee: {
+            accountCode: null, // string
+            accountName: null, // string
+          },
+          thirdParty: {
+            accountCode: null, // string
+            accountName: null, // string
+          },
+          addresses: {
+            address: [
+              {
+                addressInfo: {
+                  addressType: null, // string (e.g., "PICKUP", "DOCK")
+                  addressLine1: null, // string
+                  addressLine2: null, // string
+                  city: null, // string
+                  stateProvince: null, // string
+                  postalCode: null, // string
+                  postalCode4: null, // string
+                  countryAbbrev: null, // string (e.g., "USA")
+                },
+              },
+            ],
+          },
+          contacts: {
+            contact: [
+              {
+                contactInfo: {
+                  contactType: null, // string (e.g., "REQUESTER", "DOCK")
+                  name: {
+                    firstName: null, // string
+                    middleName: null, // string
+                    lastName: null, // string
+                  },
+                  email: null, // string
+                  phone: {
+                    areaCode: null, // string or number
+                    number: null, // string or number
+                    extension: null, // string or number
+                  },
+                  fax: {
+                    areaCode: null, // number
+                    number: null, // number
+                  },
+                  receiveNotifications: null, // string (e.g., "Y", "N")
+                  notificationMethod: null, // string (e.g., "EMAIL")
+                },
+              },
+            ],
+          },
+          notifications: {
+            notification: [
+              {
+                notificationInfo: {
+                  type: null, // string (e.g., "REJECTED", "ACCEPTED", "COMPLETED")
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
 ];
 
 // Helper function to get endpoint config by company name and endpoint name

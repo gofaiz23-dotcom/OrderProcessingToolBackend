@@ -6,6 +6,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import AuthShippingRoutes from './routes/Logistics/AuthShippingRoutes.js';
 import RateQuoteRoutes from './routes/Logistics/RateQuoteRoutes.js';
 import BillOfLadingRoutes from './routes/Logistics/BillOfLadingRoutes.js';
+import PickupRequestRoutes from './routes/Logistics/PickupRequestRoutes.js';
 import { config } from './config/env.js';
 import { errorHandler } from './utils/error.js';
 
@@ -37,6 +38,7 @@ app.use(`${API_BASE_PATH}/orders`, orderRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, AuthShippingRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, RateQuoteRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, BillOfLadingRoutes);
+app.use(`${API_BASE_PATH}/Logistics`, PickupRequestRoutes);
 
 app.use(errorHandler);
 
