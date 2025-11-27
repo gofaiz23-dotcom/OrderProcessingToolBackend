@@ -22,3 +22,18 @@ model Order {
   @@map("order")
 }
 
+model LogisticsShippedOrders {
+  id                        Int       @id @default(autoincrement())
+  sku                       String    @map("sku")
+  orderOnMarketPlace        String    @map("order_on_market_place")
+  uploads                   String[]  @map("uploads")
+  ordersJsonb               Json      @map("orders_jsonb")
+  rateQuotesResponseJsonb   Json      @map("rate_quotes_response_jsonb")
+  bolResponseJsonb          Json      @map("bol_response_jsonb")
+  pickupResponseJsonb       Json      @map("pickup_response_jsonb")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  @@map("Logistics_Shippped_Orders")
+}
+

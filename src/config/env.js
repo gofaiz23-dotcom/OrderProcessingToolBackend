@@ -45,5 +45,8 @@ export const config = {
   cors: {
     allowedOrigins: parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS),
   },
+  uploads: {
+    path: process.env.UPLOADS_PATH || '',
+  },
 };
 
