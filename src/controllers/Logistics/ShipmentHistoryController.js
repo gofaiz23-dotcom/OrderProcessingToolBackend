@@ -1,5 +1,6 @@
 import { getShipmentHistory } from '../../services/Logistics/ShipmentHistoryService.js';
 import { getEndpointConfig } from '../../config/ShippingDB.js';
+import { updateLogisticsShippedOrdersStatus } from '../../models/Logistics/logisticsShippedOrdersModel.js';
 import { AuthenticationError, NotFoundError, ValidationError, ErrorMessages, asyncHandler } from '../../utils/error.js';
 
 export const getShipmentHistoryHandler = asyncHandler(async (req, res, next) => {
@@ -44,6 +45,30 @@ export const getShipmentHistoryHandler = asyncHandler(async (req, res, next) => 
     message: `Shipment history retrieved successfully for ${shippingCompanyName}`,
     shippingCompanyName,
     data: historyResponse,
+  });
+});
+
+// PUT - Update status for single or multiple logistics shipped orders
+export const updateShipmentStatusHandler = asyncHandler(async (req, res, next) => {
+  const { ids, status } = req.body;
+
+  // Validate required fields
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    throw new ValidationError('ids field is required and must be a single ID or an array of IDs');
+  }
+
+  if (!status || typeof status !== 'string' || status.trim() === '') {
+    throw new ValidationError('status field is required and must be a non-empty string');
+  }
+
+  // Update status for the provided IDs
+  const result = await updateLogisticsShippedOrdersStatus(ids, status.trim());
+
+  res.status(200).json({
+    message: `Status updated successfully for ${result.count} order(s)`,
+    count: result.count,
+    ids: Array.isArray(ids) ? ids : [ids],
+    status: status.trim(),
   });
 });
 

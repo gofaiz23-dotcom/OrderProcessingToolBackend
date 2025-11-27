@@ -44,3 +44,19 @@ export const deleteLogisticsShippedOrdersByDateRange = async (startDate, endDate
   });
 };
 
+export const updateLogisticsShippedOrdersStatus = async (ids, status) => {
+  // Convert single ID to array if needed
+  const idArray = Array.isArray(ids) ? ids.map(id => parseInt(id)) : [parseInt(ids)];
+  
+  return await prisma.logisticsShippedOrders.updateMany({
+    where: {
+      id: {
+        in: idArray,
+      },
+    },
+    data: {
+      status,
+    },
+  });
+};
+
