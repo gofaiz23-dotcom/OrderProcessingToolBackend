@@ -8,6 +8,7 @@ import {
   deleteLogisticsShippedOrderHandler,
   deleteLogisticsShippedOrdersByDateRangeHandler,
 } from '../../controllers/Logistics/LogisticsShippedOrdersController.js';
+import { orderCreationLimiter } from '../../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -20,10 +21,10 @@ const upload = multer({
   },
 });
 
-// POST /api/v1/Logistics/shipped-orders - Create new order
-router.post('/shipped-orders', upload.array('files'), createLogisticsShippedOrderHandler);
+// POST /api/v1/Logistics/shipped-orders - Create new order (rate limited)
+router.post('/shipped-orders', orderCreationLimiter, upload.array('files'), createLogisticsShippedOrderHandler);
 
-// GET /api/v1/Logistics/shipped-orders - Get all orders
+// GET /api/v1/Logistics/shipped-orders - Get all orders (with pagination, filtering, sorting)
 router.get('/shipped-orders', getAllLogisticsShippedOrdersHandler);
 
 // GET /api/v1/Logistics/shipped-orders/:id - Get order by ID

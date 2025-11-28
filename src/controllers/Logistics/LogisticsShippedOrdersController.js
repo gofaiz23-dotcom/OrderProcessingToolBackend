@@ -50,14 +50,62 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
   });
 });
 
-// GET - Get all logistics shipped orders
+// GET - Get all logistics shipped orders with pagination, filtering, and sorting
 export const getAllLogisticsShippedOrdersHandler = asyncHandler(async (req, res, next) => {
-  const orders = await getAllLogisticsShippedOrders();
-
+  // Extract pagination params from query string
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 50;
+  
+  // Extract filter params
+  const sku = req.query.sku;
+  const orderOnMarketPlace = req.query.orderOnMarketPlace;
+  const status = req.query.status;
+  
+  // Extract sort params (default: createdAt desc)
+  const sortBy = req.query.sortBy || 'createdAt';
+  const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
+  
+  // Build where clause for filtering
+  const where = {};
+  if (sku) {
+    where.sku = {
+      contains: sku,
+      mode: 'insensitive', // Case-insensitive search
+    };
+  }
+  if (orderOnMarketPlace) {
+    where.orderOnMarketPlace = {
+      contains: orderOnMarketPlace,
+      mode: 'insensitive',
+    };
+  }
+  if (status) {
+    where.status = {
+      equals: status,
+      mode: 'insensitive',
+    };
+  }
+  
+  // Build orderBy clause
+  const orderBy = {};
+  if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'id') {
+    orderBy[sortBy] = sortOrder;
+  } else {
+    orderBy.createdAt = 'desc'; // Default fallback
+  }
+  
+  // Get paginated orders
+  const result = await getAllLogisticsShippedOrders({
+    page,
+    limit,
+    where,
+    orderBy,
+  });
+  
   res.status(200).json({
     message: 'Logistics shipped orders retrieved successfully',
-    count: orders.length,
-    data: orders,
+    success: true,
+    ...result,
   });
 });
 

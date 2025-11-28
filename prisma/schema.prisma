@@ -8,17 +8,23 @@ datasource db {
 }
 
 model GoogleAuthRefreshToken {
-  id           Int    @id @default(autoincrement())
-  refreshToken String @map("refresh_token")
+  id           Int       @id @default(autoincrement())
+  refreshToken String    @map("refresh_token")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
+  @@index([id])
   @@map("Google_Auth_Refresh_Token")
 }
 
 model Order {
-  id                  Int    @id @default(autoincrement())
-  orderOnMarketPlace  String @map("order_on_market_place")
+  id                  Int       @id @default(autoincrement())
+  orderOnMarketPlace  String    @map("order_on_market_place")
   jsonb               Json
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
+  @@index([orderOnMarketPlace])
+  @@index([createdAt])
   @@map("order")
 }
 
@@ -35,6 +41,11 @@ model LogisticsShippedOrders {
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
+  @@index([sku])
+  @@index([orderOnMarketPlace])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
   @@map("Logistics_Shippped_Orders")
 }
 
@@ -45,6 +56,7 @@ model ShippingCompanyToken {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
+  @@index([shippingCompanyName])
   @@map("shipping_company_token")
 }
 

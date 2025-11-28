@@ -13,6 +13,7 @@ import LogisticsShippedOrdersRoutes from './routes/Logistics/LogisticsShippedOrd
 import ShipmentHistoryRoutes from './routes/Logistics/ShipmentHistoryRoutes.js';
 import { config } from './config/env.js';
 import { errorHandler } from './utils/error.js';
+import { apiLimiter, authLimiter, orderCreationLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,17 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const API_BASE_PATH = '/api/v1';
 const allowedOrigins = config.cors.allowedOrigins;
+
+// Request timeout middleware (30 seconds)
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    res.status(408).json({ 
+      error: 'Request timeout',
+      message: 'The request took too long to process. Please try again with a simpler query.',
+    });
+  });
+  next();
+});
 
 app.use(
   cors({
@@ -50,10 +62,13 @@ if (config.uploads.path) {
   app.use(`/${uploadsFolderName}`, express.static(uploadsPath));
 }
 
+// Apply general rate limiting to all API routes
+app.use(`${API_BASE_PATH}`, apiLimiter);
+
 app.get(`${API_BASE_PATH}/health`, (req, res) => res.json({ status: 'ok' }));
 
 app.use(`${API_BASE_PATH}/emails`, emailRoutes);
-app.use(`${API_BASE_PATH}/auth`, googleAuthRoutes);
+app.use(`${API_BASE_PATH}/auth`, authLimiter, googleAuthRoutes);
 app.use(`${API_BASE_PATH}/orders`, orderRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, AuthShippingRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, RateQuoteRoutes);

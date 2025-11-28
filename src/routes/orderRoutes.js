@@ -5,11 +5,13 @@ import {
   updateOrderHandler,
   deleteOrderHandler,
 } from '../controllers/orderController.js';
+import { orderCreationLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // Create order(s) - accepts single order object or array of orders
-router.post('/create', addOrder);
+// Apply rate limiting to prevent abuse
+router.post('/create', orderCreationLimiter, addOrder);
 
 // Get all orders
 router.get('/all', getAllOrdersHandler);
