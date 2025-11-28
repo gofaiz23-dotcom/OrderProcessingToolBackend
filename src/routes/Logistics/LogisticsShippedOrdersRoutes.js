@@ -7,6 +7,8 @@ import {
   updateLogisticsShippedOrderHandler,
   deleteLogisticsShippedOrderHandler,
   deleteLogisticsShippedOrdersByDateRangeHandler,
+  getAllOrdersJsonbHandler,
+  getOrdersJsonbByIdHandler,
 } from '../../controllers/Logistics/LogisticsShippedOrdersController.js';
 import { orderCreationLimiter } from '../../middleware/rateLimiter.js';
 
@@ -38,6 +40,12 @@ router.delete('/shipped-orders/:id', deleteLogisticsShippedOrderHandler);
 
 // DELETE /api/v1/Logistics/shipped-orders?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD - Delete by date range
 router.delete('/shipped-orders', deleteLogisticsShippedOrdersByDateRangeHandler);
+
+// GET /api/v1/Logistics/orders-jsonb - Get all ordersJsonb only (with pagination, filtering, sorting)
+router.get('/orders-jsonb', getAllOrdersJsonbHandler);
+
+// GET /api/v1/Logistics/orders-jsonb/:id - Get ordersJsonb by ID
+router.get('/orders-jsonb/:id', getOrdersJsonbByIdHandler);
 
 export default router;
 

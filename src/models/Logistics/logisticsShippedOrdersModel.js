@@ -142,3 +142,60 @@ export const updateLogisticsShippedOrdersStatusMultiple = async (updates) => {
   };
 };
 
+// Get only ordersJsonb field for all orders (with pagination and filtering)
+export const getAllOrdersJsonb = async (options = {}) => {
+  const {
+    page = 1,
+    limit = 50,
+    orderBy = { createdAt: 'desc' },
+    where = {},
+  } = options;
+  
+  const skip = (page - 1) * limit;
+  const take = Math.min(limit, 100); // Max 100 per page for performance
+  
+  // Get total count for pagination metadata
+  const [orders, totalCount] = await Promise.all([
+    prisma.logisticsShippedOrders.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+      select: {
+        id: true,
+        ordersJsonb: true,
+        orderOnMarketPlace: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.logisticsShippedOrders.count({ where }),
+  ]);
+  
+  return {
+    orders,
+    pagination: {
+      page,
+      limit: take,
+      totalCount,
+      totalPages: Math.ceil(totalCount / take),
+      hasNextPage: skip + take < totalCount,
+      hasPreviousPage: page > 1,
+    },
+  };
+};
+
+// Get only ordersJsonb field by ID
+export const getOrdersJsonbById = async (id) => {
+  return await prisma.logisticsShippedOrders.findUnique({
+    where: { id: parseInt(id) },
+    select: {
+      id: true,
+      ordersJsonb: true,
+      orderOnMarketPlace: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+};
+

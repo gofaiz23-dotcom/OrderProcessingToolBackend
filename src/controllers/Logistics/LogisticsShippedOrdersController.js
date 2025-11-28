@@ -5,6 +5,8 @@ import {
   updateLogisticsShippedOrder,
   deleteLogisticsShippedOrder,
   deleteLogisticsShippedOrdersByDateRange,
+  getAllOrdersJsonb,
+  getOrdersJsonbById,
 } from '../../models/Logistics/logisticsShippedOrdersModel.js';
 import { saveUploadedFiles } from '../../services/Logistics/LogisticsShippedOrdersService.js';
 import { NotFoundError, ValidationError, ErrorMessages, asyncHandler } from '../../utils/error.js';
@@ -214,6 +216,67 @@ export const deleteLogisticsShippedOrdersByDateRangeHandler = asyncHandler(async
   res.status(200).json({
     message: `Deleted ${result.count} logistics shipped order(s) between ${startDate} and ${endDate}`,
     count: result.count,
+  });
+});
+
+// GET - Get all ordersJsonb only (for marketing/user details extraction)
+export const getAllOrdersJsonbHandler = asyncHandler(async (req, res, next) => {
+  // Extract pagination params from query string
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 50;
+  
+  // Extract filter params
+  const orderOnMarketPlace = req.query.orderOnMarketPlace;
+  
+  // Extract sort params (default: createdAt desc)
+  const sortBy = req.query.sortBy || 'createdAt';
+  const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
+  
+  // Build where clause for filtering
+  const where = {};
+  if (orderOnMarketPlace) {
+    where.orderOnMarketPlace = {
+      contains: orderOnMarketPlace,
+      mode: 'insensitive',
+    };
+  }
+  
+  // Build orderBy clause
+  const orderBy = {};
+  if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'id') {
+    orderBy[sortBy] = sortOrder;
+  } else {
+    orderBy.createdAt = 'desc'; // Default fallback
+  }
+  
+  // Get paginated orders with only ordersJsonb
+  const result = await getAllOrdersJsonb({
+    page,
+    limit,
+    where,
+    orderBy,
+  });
+  
+  res.status(200).json({
+    message: 'Orders JSONB retrieved successfully',
+    success: true,
+    ...result,
+  });
+});
+
+// GET - Get ordersJsonb by ID
+export const getOrdersJsonbByIdHandler = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const order = await getOrdersJsonbById(id);
+
+  if (!order) {
+    throw new NotFoundError(`Order with ID ${id} not found`);
+  }
+
+  res.status(200).json({
+    message: 'Order JSONB retrieved successfully',
+    data: order,
   });
 });
 
