@@ -22,11 +22,34 @@ export const createBillOfLading = async (companyName, bearerToken, requestBody) 
     Authorization: `Bearer ${bearerToken}`,
   };
 
+  // Get Content-Type from config (no hardcoding - always from ShippingDB.js)
+  const contentType = headers['Content-Type'] || headers['content-type'];
+  
+  // Format body based on Content-Type from config (fully dynamic)
+  let body;
+  if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
+    // Convert to URL-encoded format
+    body = new URLSearchParams();
+    Object.entries(mergedBody).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        if (typeof value === 'object') {
+          body.append(key, JSON.stringify(value));
+        } else {
+          body.append(key, value.toString());
+        }
+      }
+    });
+    body = body.toString();
+  } else {
+    // Default to JSON (or use Content-Type from config)
+    body = JSON.stringify(mergedBody);
+  }
+
   // Make API call to shipping company
   const response = await fetch(bolConfig.url, {
     method: bolConfig.method,
     headers,
-    body: JSON.stringify(mergedBody),
+    body,
   });
 
   if (!response.ok) {

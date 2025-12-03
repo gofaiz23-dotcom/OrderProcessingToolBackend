@@ -12,18 +12,26 @@ export const getShipmentHistoryHandler = asyncHandler(async (req, res, next) => 
 
   const bearerToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
+  // Get shipping company from query parameters
+  const { shippingCompany, company, pro, po, bol, pur, ldn, exl, interlinePro, referenceNumbers } = req.query;
+  
+  // Support both 'shippingCompany' and 'company' for flexibility
+  const companyName = shippingCompany || company;
+
+  if (!companyName) {
+    throw new ValidationError(ErrorMessages.REQUIRED_FIELD('shippingCompany or company'));
+  }
+
   // Get shipping company config using helper function
-  const historyConfig = getEndpointConfig('estes', 'getShipmentHistory');
+  const historyConfig = getEndpointConfig(companyName, 'getShipmentHistory');
   if (!historyConfig) {
-    throw new NotFoundError(ErrorMessages.NO_COMPANIES_CONFIGURED);
+    throw new NotFoundError(ErrorMessages.ENDPOINT_NOT_FOUND(`getShipmentHistory for company: ${companyName}`));
   }
 
   const shippingCompanyName = historyConfig.shippingCompanyName;
 
-  // Get query parameters
-  const { pro, po, bol, pur, ldn, exl, interlinePro } = req.query;
-
   // Prepare query parameters object
+  // Support both Estes format (multiple params) and XPO format (referenceNumbers)
   const queryParams = {
     pro: pro || null,
     po: po || null,
@@ -32,6 +40,7 @@ export const getShipmentHistoryHandler = asyncHandler(async (req, res, next) => 
     ldn: ldn || null,
     exl: exl || null,
     interlinePro: interlinePro || null,
+    referenceNumbers: referenceNumbers || null, // XPO format
   };
 
   // Get shipment history with token and query params

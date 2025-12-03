@@ -88,5 +88,15 @@ export const config = {
   uploads: {
     path: process.env.UPLOADS_PATH || '',
   },
+  shipping: {
+    estes: {
+      baseUrl: process.env.ESTES_BASE_URL || '',
+      apiKey: process.env.ESTES_API_KEY || '',
+    },
+    xpo: {
+      baseUrl: process.env.XPO_BASE_URL || '',
+      apiKey: process.env.XPO_API_KEY || '',
+    },
+  },
 };
 

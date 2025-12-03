@@ -10,6 +10,14 @@ const estesCommon = {
   apikey: process.env.ESTES_API_KEY || '',
 };
 
+// Common configuration for XPO
+const xpoCommon = {
+  shippingCompanyName: 'xpo',
+  description: 'XPO Logistics',
+  baseUrl: process.env.XPO_BASE_URL || '',
+  apikey: process.env.XPO_API_KEY || '',
+};
+
 // Shipping Companies Configuration (Database Structure)
 export const estes = [
   {
@@ -434,9 +442,322 @@ export const estes = [
   },
 ];
 
+// XPO Shipping Company Configuration
+export const xpo = [
+  {
+    shippingCompanyName: xpoCommon.shippingCompanyName,
+    description: xpoCommon.description,
+    jsonb: {
+      baseUrl: xpoCommon.baseUrl,
+      auth: {
+        url: `${xpoCommon.baseUrl}/token`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${xpoCommon.apikey}`, // Basic Auth with API key
+        },
+        bodyTemplate: {
+          grant_type: 'password', // Fixed value: password
+          username: null, // string - provided by user
+          password: null, // string - provided by user
+        },
+        // Note: Body will be sent as form-urlencoded, not JSON
+        // Service layer should convert bodyTemplate to URLSearchParams format
+      },
+    },
+  },
+  {
+    shippingCompanyName: xpoCommon.shippingCompanyName,
+    description: xpoCommon.description,
+    jsonb: {
+      baseUrl: xpoCommon.baseUrl,
+      createRateQuote: {
+        url: `${xpoCommon.baseUrl}/rating/1.0/ratequotes`,
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ', // Will be replaced with user's token
+        },
+        bodyTemplate: {
+          shipmentInfo: {
+            paymentTermCd: null, // string (e.g., "P")
+            shipmentDate: null, // string (ISO 8601 format, e.g., "2025-12-05T12:00:00.000Z")
+            accessorials: null, // array
+            shipper: {
+              address: {
+                postalCd: null, // string (e.g., "10001")
+              },
+            },
+            consignee: {
+              address: {
+                postalCd: null, // string (e.g., "90210")
+              },
+            },
+            commodity: [
+              {
+                pieceCnt: null, // number
+                packageCode: null, // string (e.g., "BOX")
+                grossWeight: {
+                  weight: null, // number
+                  weightUom: null, // string (e.g., "LBS")
+                },
+                nmfcClass: null, // string (e.g., "85")
+                hazmatInd: null, // boolean
+                dimensions: {
+                  length: null, // number
+                  width: null, // number
+                  height: null, // number
+                  dimensionsUom: null, // string (e.g., "INCH")
+                },
+              },
+            ],
+            palletCnt: null, // number
+            linealFt: null, // number
+          },
+        },
+      },
+    },
+  },
+  {
+    shippingCompanyName: xpoCommon.shippingCompanyName,
+    description: xpoCommon.description,
+    jsonb: {
+      baseUrl: xpoCommon.baseUrl,
+      createBillOfLading: {
+        url: `${xpoCommon.baseUrl}/billoflading/1.0/billsoflading`,
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ', // Will be replaced with user's token
+        },
+        bodyTemplate: {
+          bol: {
+            requester: {
+              role: null, // string (e.g., "S")
+            },
+            consignee: {
+              address: {
+                addressLine1: null, // string
+                cityName: null, // string
+                stateCd: null, // string
+                countryCd: null, // string (e.g., "US")
+                postalCd: null, // string
+              },
+              contactInfo: {
+                companyName: null, // string
+                email: {
+                  emailAddr: null, // string
+                },
+                phone: {
+                  phoneNbr: null, // string
+                },
+              },
+            },
+            shipper: {
+              address: {
+                addressLine1: null, // string
+                cityName: null, // string
+                stateCd: null, // string
+                countryCd: null, // string (e.g., "US")
+                postalCd: null, // string
+              },
+              contactInfo: {
+                companyName: null, // string
+                email: {
+                  emailAddr: null, // string
+                },
+                phone: {
+                  phoneNbr: null, // string
+                },
+              },
+            },
+            billToCust: {
+              address: {
+                addressLine1: null, // string
+                cityName: null, // string
+                stateCd: null, // string
+                countryCd: null, // string (e.g., "US")
+                postalCd: null, // string
+              },
+              contactInfo: {
+                companyName: null, // string
+                email: {
+                  emailAddr: null, // string
+                },
+                phone: {
+                  phoneNbr: null, // string
+                },
+              },
+            },
+            commodityLine: [
+              {
+                pieceCnt: null, // number
+                packaging: {
+                  packageCd: null, // string (e.g., "PLT")
+                },
+                grossWeight: {
+                  weight: null, // number
+                },
+                desc: null, // string
+                nmfcClass: null, // string (e.g., "250")
+                nmfcItemCd: null, // string (e.g., "079300")
+                sub: null, // string (e.g., "03")
+                hazmatInd: null, // boolean
+              },
+            ],
+            remarks: null, // string
+            emergencyContactName: null, // string
+            emergencyContactPhone: {
+              phoneNbr: null, // string
+            },
+            chargeToCd: null, // string (e.g., "P")
+            additionalService: null, // array
+            suppRef: {
+              otherRefs: [
+                {
+                  referenceCode: null, // string (e.g., "RQ#")
+                  reference: null, // string
+                  referenceDescr: null, // string
+                  referenceTypeCd: null, // string (e.g., "Other")
+                },
+              ],
+            },
+            pickupInfo: {
+              pkupDate: null, // string (ISO 8601 format with timezone, e.g., "2025-12-15T12:00:00-08:00")
+              pkupTime: null, // string (ISO 8601 format with timezone)
+              dockCloseTime: null, // string (ISO 8601 format with timezone)
+              contact: {
+                companyName: null, // string
+                fullName: null, // string
+                phone: {
+                  phoneNbr: null, // string
+                },
+              },
+            },
+            declaredValueAmt: {
+              amt: null, // number
+            },
+            declaredValueAmtPerLb: {
+              amt: null, // number
+            },
+            excessLiabilityChargeInit: null, // string
+          },
+          autoAssignPro: null, // boolean
+        },
+      },
+    },
+  },
+  {
+    shippingCompanyName: xpoCommon.shippingCompanyName,
+    description: xpoCommon.description,
+    jsonb: {
+      baseUrl: xpoCommon.baseUrl,
+      createPickupRequest: {
+        url: `${xpoCommon.baseUrl}/pickuprequest/1.0/cust-pickup-requests`,
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ', // Will be replaced with user's token
+        },
+        bodyTemplate: {
+          pickupRqstInfo: {
+            pkupDate: null, // string (ISO 8601 format, e.g., "2016-12-17T00:00:00")
+            readyTime: null, // string (ISO 8601 format, e.g., "2016-12-17T14:00:00")
+            closeTime: null, // string (ISO 8601 format, e.g., "2016-12-17T17:00:00")
+            specialEquipmentCd: null, // string (e.g., "F")
+            insidePkupInd: null, // boolean
+            shipper: {
+              name: null, // string
+              addressLine1: null, // string
+              addressLine2: null, // string
+              cityName: null, // string
+              stateCd: null, // string
+              countryCd: null, // string (e.g., "US")
+              postalCd: null, // string
+            },
+            requestor: {
+              contact: {
+                companyName: null, // string
+                email: {
+                  emailAddr: null, // string
+                },
+                fullName: null, // string
+                phone: {
+                  phoneNbr: null, // string
+                },
+              },
+              roleCd: null, // string (e.g., "S")
+            },
+            contact: {
+              companyName: null, // string
+              email: {
+                emailAddr: null, // string
+              },
+              fullName: null, // string
+              phone: {
+                phoneNbr: null, // string
+              },
+            },
+            remarks: null, // string
+            pkupItem: [
+              {
+                destZip6: null, // string (e.g., "55122")
+                totWeight: {
+                  weight: null, // number
+                },
+                loosePiecesCnt: null, // number
+                palletCnt: null, // number
+                garntInd: null, // boolean
+                hazmatInd: null, // boolean
+                frzbleInd: null, // boolean
+                holDlvrInd: null, // boolean
+                foodInd: null, // boolean
+                remarks: null, // string
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
+  {
+    shippingCompanyName: xpoCommon.shippingCompanyName,
+    description: xpoCommon.description,
+    jsonb: {
+      baseUrl: xpoCommon.baseUrl,
+      getShipmentHistory: {
+        url: `${xpoCommon.baseUrl}/tracking/1.0/shipments/shipment-status-details`,
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ', // Will be replaced with user's token
+        },
+        queryParameters: {
+          referenceNumbers: null, // string (e.g., "439-581122")
+        },
+      },
+    },
+  },
+];
+
+// Combine all shipping companies into a single array for dynamic lookup
+// Add new companies here - they will automatically be available in all routes
+const allShippingCompanies = [
+  ...estes,
+  ...xpo,
+  // Add more companies here as needed:
+  // ...fedex,
+  // ...ups,
+];
+
 // Helper function to get endpoint config by company name and endpoint name
+// This function automatically searches ALL configured shipping companies
 export const getEndpointConfig = (companyName, endpointName) => {
-  const config = estes.find(
+  const config = allShippingCompanies.find(
     (item) =>
       item.shippingCompanyName.toLowerCase() === companyName.toLowerCase() &&
       item.jsonb[endpointName]

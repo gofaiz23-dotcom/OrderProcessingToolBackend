@@ -1,6 +1,6 @@
 import { createRateQuote } from '../../services/Logistics/RateQuoteService.js';
 import { getEndpointConfig } from '../../config/ShippingDB.js';
-import { AuthenticationError, NotFoundError, ErrorMessages, asyncHandler } from '../../utils/error.js';
+import { AuthenticationError, NotFoundError, ValidationError, ErrorMessages, asyncHandler } from '../../utils/error.js';
 
 export const createRateQuoteHandler = asyncHandler(async (req, res, next) => {
   // Get Bearer token from Authorization header
@@ -11,16 +11,20 @@ export const createRateQuoteHandler = asyncHandler(async (req, res, next) => {
 
   const bearerToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
+  // Get shipping company from request body
+  const { shippingCompany, ...requestBody } = req.body;
+
+  if (!shippingCompany) {
+    throw new ValidationError(ErrorMessages.REQUIRED_FIELD('shippingCompany'));
+  }
+
   // Get shipping company config using helper function
-  const rateQuoteConfig = getEndpointConfig('estes', 'createRateQuote');
+  const rateQuoteConfig = getEndpointConfig(shippingCompany, 'createRateQuote');
   if (!rateQuoteConfig) {
-    throw new NotFoundError(ErrorMessages.NO_COMPANIES_CONFIGURED);
+    throw new NotFoundError(ErrorMessages.ENDPOINT_NOT_FOUND(`createRateQuote for company: ${shippingCompany}`));
   }
 
   const shippingCompanyName = rateQuoteConfig.shippingCompanyName;
-
-  // Get request body (user will send only the fields they want to fill)
-  const requestBody = req.body;
 
   // Create rate quote with token and body
   const quoteResponse = await createRateQuote(

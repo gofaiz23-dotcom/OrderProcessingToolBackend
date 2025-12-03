@@ -16,7 +16,7 @@ export const getShipmentHistory = async (companyName, bearerToken, queryParams) 
   // Validate at least one query parameter is provided
   const hasParams = Object.values(queryParams).some(value => value !== null && value !== undefined && value !== '');
   if (!hasParams) {
-    throw new AppError('At least one query parameter (pro, po, bol, pur, ldn, exl, interline-pro) is required', 400);
+    throw new AppError('At least one query parameter is required. For Estes: pro, po, bol, pur, ldn, exl, interline-pro. For XPO: referenceNumbers', 400);
   }
 
   // Build query string
