@@ -6,58 +6,47 @@ import {
   deleteThreePlGigaFedex,
   deleteThreePlGigaFedexByDateRange,
 } from '../../models/Logistics/threePlGigaFedexModel.js';
-import {
-  saveThreePlGigaFedexFiles,
-  parseUploadArray,
-  parseFedexJson,
-} from '../../services/Logistics/ThreePlGigaFedexService.js';
 import { NotFoundError, ValidationError, ConflictError, asyncHandler } from '../../utils/error.js';
 import { Prisma } from '@prisma/client';
 
 /**
  * POST - Create single or multiple 3PL Giga Fedex records
- * Accepts form data with single or multiple records
+ * Accepts JSON with single object or array of objects
+ * 
+ * Single record format:
+ * {
+ *   "trackingNo": "TRACK123",
+ *   "fedexJson": { "key": "value", ... }
+ * }
+ * 
+ * Multiple records format:
+ * [
+ *   { "trackingNo": "TRACK123", "fedexJson": { ... } },
+ *   { "trackingNo": "TRACK456", "fedexJson": { ... } }
+ * ]
  */
 export const createThreePlGigaFedexHandler = asyncHandler(async (req, res, next) => {
-  const { trackingNo, fedexJson, uploadArray } = req.body;
-  const files = req.files || [];
+  const requestBody = req.body;
 
-  // Handle file uploads
-  let savedFilePaths = [];
-  if (files.length > 0) {
-    try {
-      savedFilePaths = saveThreePlGigaFedexFiles(files);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Check if multiple records (array format)
-  if (Array.isArray(trackingNo) || (trackingNo && trackingNo.includes(','))) {
+  // Check if request body is an array (multiple records)
+  if (Array.isArray(requestBody)) {
     // Multiple records mode
-    const trackingNos = Array.isArray(trackingNo) 
-      ? trackingNo 
-      : trackingNo.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+    if (requestBody.length === 0) {
+      throw new ValidationError('Array cannot be empty');
+    }
 
-    const fedexJsonArray = Array.isArray(fedexJson)
-      ? fedexJson
-      : fedexJson
-      ? fedexJson.split('|||').map((j) => parseFedexJson(j))
-      : [];
-
-    const uploadArrayData = uploadArray
-      ? parseUploadArray(uploadArray)
-      : savedFilePaths;
-
-    // Combine saved files with existing upload array
-    const allUploads = [...savedFilePaths, ...uploadArrayData];
-
-    // Create records array
-    const records = trackingNos.map((tn, index) => ({
-      trackingNo: tn,
-      fedexJson: fedexJsonArray[index] || {},
-      uploadArray: allUploads.length > 0 ? allUploads : [],
-    }));
+    // Validate and prepare records
+    const records = requestBody.map((item, index) => {
+      if (!item.trackingNo) {
+        throw new ValidationError(`Record at index ${index}: trackingNo is required`);
+      }
+      
+      return {
+        trackingNo: item.trackingNo,
+        fedexJson: item.fedexJson || {},
+        uploadArray: [], // No file uploads, always empty array
+      };
+    });
 
     try {
       const result = await createMultipleThreePlGigaFedex(records);
@@ -74,23 +63,20 @@ export const createThreePlGigaFedexHandler = asyncHandler(async (req, res, next)
     }
   } else {
     // Single record mode
+    const { trackingNo, fedexJson } = requestBody;
+
     if (!trackingNo) {
       throw new ValidationError('trackingNo is required');
     }
 
-    const parsedFedexJson = parseFedexJson(fedexJson);
-    const parsedUploadArray = uploadArray
-      ? parseUploadArray(uploadArray)
-      : savedFilePaths;
-
-    // Combine saved files with existing upload array
-    const allUploads = [...savedFilePaths, ...parsedUploadArray];
+    // fedexJson can be an object or will default to empty object
+    const parsedFedexJson = fedexJson || {};
 
     try {
       const record = await createThreePlGigaFedex({
         trackingNo,
         fedexJson: parsedFedexJson,
-        uploadArray: allUploads,
+        uploadArray: [], // No file uploads, always empty array
       });
 
       res.status(201).json({

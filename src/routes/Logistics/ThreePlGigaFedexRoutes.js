@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import multer from 'multer';
 import {
   createThreePlGigaFedexHandler,
   getAllThreePlGigaFedexHandler,
@@ -10,30 +9,25 @@ import {
 
 const router = Router();
 
-// Configure multer for file uploads (accepts any file type)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB max file size
-    files: 20, // Max 20 files
-  },
-});
-
 /**
  * POST /api/v1/Logistics/3pl-giga-fedex
  * Create single or multiple 3PL Giga Fedex records
  * 
- * Form Data Fields:
- * - trackingNo: string (single) or comma-separated string (multiple)
- * - fedexJson: JSON string or object (single) or ||| separated JSON strings (multiple)
- * - uploadArray: comma-separated file paths (optional, files can be uploaded via 'files' field)
- * - files: file uploads (optional, will be saved and added to uploadArray)
+ * Accepts JSON format:
  * 
- * Examples:
- * Single: { trackingNo: "TRACK123", fedexJson: '{"key":"value"}', files: [file1, file2] }
- * Multiple: { trackingNo: "TRACK123,TRACK456", fedexJson: '{"key1":"value1"}|||{"key2":"value2"}' }
+ * Single record:
+ * {
+ *   "trackingNo": "TRACK123",
+ *   "fedexJson": { "customerCode": "G108", "carrier": "FedEx", ... }
+ * }
+ * 
+ * Multiple records:
+ * [
+ *   { "trackingNo": "TRACK123", "fedexJson": { ... } },
+ *   { "trackingNo": "TRACK456", "fedexJson": { ... } }
+ * ]
  */
-router.post('/3pl-giga-fedex', upload.array('files'), createThreePlGigaFedexHandler);
+router.post('/3pl-giga-fedex', createThreePlGigaFedexHandler);
 
 /**
  * GET /api/v1/Logistics/3pl-giga-fedex
