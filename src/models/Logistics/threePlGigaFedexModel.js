@@ -122,6 +122,22 @@ export const getThreePlGigaFedexById = async (id) => {
 };
 
 /**
+ * Update 3PL Giga Fedex record by ID
+ * @param {number} id - Record ID
+ * @param {Object} data - Update data
+ * @param {string} [data.trackingNo] - Tracking number
+ * @param {Object} [data.fedexJson] - FedEx JSON data
+ * @param {string[]} [data.uploadArray] - Array of file paths
+ * @returns {Promise<Object>} Updated record
+ */
+export const updateThreePlGigaFedex = async (id, data) => {
+  return await prisma.threePlGigaFedex.update({
+    where: { id: parseInt(id) },
+    data,
+  });
+};
+
+/**
  * Delete 3PL Giga Fedex record by ID
  * @param {number} id - Record ID
  * @returns {Promise<Object>} Deleted record
