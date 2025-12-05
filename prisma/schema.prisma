@@ -60,3 +60,15 @@ model ShippingCompanyToken {
   @@map("shipping_company_token")
 }
 
+model ThreePlGigaFedex {
+  id           Int       @id @default(autoincrement())
+  trackingNo   String    @unique @map("tracking_no")
+  fedexJson    Json      @map("fedex_json")
+  uploadArray  String[]  @map("upload_array")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@map("three_pl_giga_fedex")
+}
+

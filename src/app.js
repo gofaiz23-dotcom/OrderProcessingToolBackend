@@ -11,9 +11,11 @@ import BillOfLadingRoutes from './routes/Logistics/BillOfLadingRoutes.js';
 import PickupRequestRoutes from './routes/Logistics/PickupRequestRoutes.js';
 import LogisticsShippedOrdersRoutes from './routes/Logistics/LogisticsShippedOrdersRoutes.js';
 import ShipmentHistoryRoutes from './routes/Logistics/ShipmentHistoryRoutes.js';
+import ThreePlGigaFedexRoutes from './routes/Logistics/ThreePlGigaFedexRoutes.js';
 import { config } from './config/env.js';
 import { errorHandler } from './utils/error.js';
 import { apiLimiter, authLimiter, orderCreationLimiter } from './middleware/rateLimiter.js';
+import { initializeThreePlGigaFedexUploadsDirectory } from './services/Logistics/ThreePlGigaFedexService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,6 +78,10 @@ app.use(`${API_BASE_PATH}/Logistics`, BillOfLadingRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, PickupRequestRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, LogisticsShippedOrdersRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, ShipmentHistoryRoutes);
+app.use(`${API_BASE_PATH}/Logistics`, ThreePlGigaFedexRoutes);
+
+// Initialize 3PL Giga Fedex uploads directory on server start
+initializeThreePlGigaFedexUploadsDirectory();
 
 app.use(errorHandler);
 
