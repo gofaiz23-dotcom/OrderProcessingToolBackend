@@ -32,9 +32,9 @@ export const createMultipleThreePlGigaFedex = async (records) => {
     uploadArray: record.uploadArray || [],
   }));
 
+  // Use createMany - duplicates are now allowed (no unique constraint)
   const result = await prisma.threePlGigaFedex.createMany({
     data,
-    skipDuplicates: true,
   });
 
   return {

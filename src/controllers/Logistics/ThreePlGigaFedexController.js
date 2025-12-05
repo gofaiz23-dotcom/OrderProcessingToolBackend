@@ -56,9 +56,7 @@ export const createThreePlGigaFedexHandler = asyncHandler(async (req, res, next)
         data: result,
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictError('One or more tracking numbers already exist. Tracking numbers must be unique.');
-      }
+      // No need to check for P2002 (unique constraint) since trackingNo is no longer unique
       throw error;
     }
   } else {
@@ -84,9 +82,7 @@ export const createThreePlGigaFedexHandler = asyncHandler(async (req, res, next)
         data: record,
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictError(`Tracking number "${trackingNo}" already exists. Tracking numbers must be unique.`);
-      }
+      // No need to check for P2002 (unique constraint) since trackingNo is no longer unique
       throw error;
     }
   }
