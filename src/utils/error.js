@@ -49,44 +49,81 @@ export class ConflictError extends AppError {
 
 // Error Response Formatter
 export const formatErrorResponse = (error) => {
+  // Handle AppError and its subclasses
   if (error instanceof AppError) {
     return {
-      status: error.statusCode,
-      message: error.message,
-    };
-  }
-
-  // Handle known error patterns
-  if (error.status) {
-    return {
-      status: error.status,
+      status: error.statusCode || 500,
       message: error.message || 'An error occurred',
     };
   }
 
-  // Default error response
+  // Handle ValidationError, NotFoundError, etc. (subclasses of AppError)
+  if (error.name === 'ValidationError' || error.name === 'NotFoundError' || 
+      error.name === 'AuthenticationError' || error.name === 'AuthorizationError') {
+    return {
+      status: error.statusCode || 400,
+      message: error.message || 'An error occurred',
+    };
+  }
+
+  // Handle errors with status property
+  if (error.status || error.statusCode) {
+    return {
+      status: error.status || error.statusCode || 500,
+      message: error.message || 'An error occurred',
+    };
+  }
+
+  // Handle string errors
+  if (typeof error === 'string') {
+    return {
+      status: 500,
+      message: error,
+    };
+  }
+
+  // Default error response - ensure we always return a message
   return {
     status: 500,
-    message: error.message || 'Internal server error',
+    message: error?.message || error?.toString() || 'Internal server error',
   };
 };
 
 // Error Handler Middleware
 export const errorHandler = (err, req, res, next) => {
-  const errorResponse = formatErrorResponse(err);
-
-  // Log error for debugging
-  console.error('Error:', {
-    message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    status: errorResponse.status,
-    path: req.path,
-    method: req.method,
+  // Log full error details for debugging
+  console.error('Error Handler - Full Error Details:', {
+    name: err?.name,
+    message: err?.message,
+    stack: err?.stack,
+    statusCode: err?.statusCode,
+    status: err?.status,
+    path: req?.path,
+    method: req?.method,
+    body: req?.body ? JSON.stringify(req.body).substring(0, 500) : undefined,
   });
 
-  res.status(errorResponse.status).json({
-    message: errorResponse.message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  const errorResponse = formatErrorResponse(err);
+
+  // Ensure we have a valid status code
+  const statusCode = errorResponse.status || 500;
+  
+  // Ensure we have a valid error message
+  const errorMessage = errorResponse.message || 'An unexpected error occurred';
+
+  // Log formatted error response
+  console.error('Error Handler - Formatted Response:', {
+    status: statusCode,
+    message: errorMessage,
+  });
+
+  res.status(statusCode).json({
+    message: errorMessage,
+    ...(process.env.NODE_ENV === 'development' && { 
+      stack: err?.stack,
+      originalError: err?.message,
+      errorName: err?.name,
+    }),
   });
 };
 

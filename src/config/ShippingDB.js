@@ -601,10 +601,10 @@ export const xpo = [
                   weight: null, // number
                 },
                 desc: null, // string
-                nmfcClass: null, // string (e.g., "250")
+                hazmatInd: null, // boolean
+                nmfcClass: null, // string (e.g., "125")
                 nmfcItemCd: null, // string (e.g., "079300")
                 sub: null, // string (e.g., "03")
-                hazmatInd: null, // boolean
               },
             ],
             remarks: null, // string
@@ -613,36 +613,17 @@ export const xpo = [
               phoneNbr: null, // string
             },
             chargeToCd: null, // string (e.g., "P")
-            additionalService: null, // array
+            additionalService: [], // array
             suppRef: {
               otherRefs: [
                 {
-                  referenceCode: null, // string (e.g., "RQ#")
-                  reference: null, // string
-                  referenceDescr: null, // string
                   referenceTypeCd: null, // string (e.g., "Other")
+                  reference: null, // string
+                  referenceCode: null, // string (e.g., "RQ#")
+                  referenceDescr: null, // string
                 },
               ],
             },
-            pickupInfo: {
-              pkupDate: null, // string (ISO 8601 format with timezone, e.g., "2025-12-15T12:00:00-08:00")
-              pkupTime: null, // string (ISO 8601 format with timezone)
-              dockCloseTime: null, // string (ISO 8601 format with timezone)
-              contact: {
-                companyName: null, // string
-                fullName: null, // string
-                phone: {
-                  phoneNbr: null, // string
-                },
-              },
-            },
-            declaredValueAmt: {
-              amt: null, // number
-            },
-            declaredValueAmtPerLb: {
-              amt: null, // number
-            },
-            excessLiabilityChargeInit: null, // string
           },
           autoAssignPro: null, // boolean
         },

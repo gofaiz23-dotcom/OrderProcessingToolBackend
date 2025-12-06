@@ -315,6 +315,24 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
         }
       }
     },
+    "billToCust": {
+      "address": {
+        "addressLine1": "10506 SHOEMAKER AVE",
+        "cityName": "SANTA FE SPRINGS",
+        "stateCd": "CA",
+        "countryCd": "US",
+        "postalCd": "90670"
+      },
+      "contactInfo": {
+        "companyName": "Shipper Company",
+        "email": {
+          "emailAddr": "shipper@example.com"
+        },
+        "phone": {
+          "phoneNbr": "123-4567890"
+        }
+      }
+    },
     "commodityLine": [
       {
         "pieceCnt": 1,
@@ -335,7 +353,14 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
     "pickupInfo": {
       "pkupDate": "2025-12-15T12:00:00-08:00",
       "pkupTime": "2025-12-15T12:00:00-08:00",
-      "dockCloseTime": "2025-12-15T13:00:00-08:00"
+      "dockCloseTime": "2025-12-15T13:00:00-08:00",
+      "contact": {
+        "companyName": "Shipper Company",
+        "fullName": "John Doe",
+        "phone": {
+          "phoneNbr": "123-4567890"
+        }
+      }
     }
   },
   "autoAssignPro": true
