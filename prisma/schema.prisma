@@ -8,17 +8,68 @@ datasource db {
 }
 
 model GoogleAuthRefreshToken {
-  id           Int    @id @default(autoincrement())
-  refreshToken String @map("refresh_token")
+  id           Int       @id @default(autoincrement())
+  refreshToken String    @map("refresh_token")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
+  @@index([id])
   @@map("Google_Auth_Refresh_Token")
 }
 
 model Order {
-  id                  Int    @id @default(autoincrement())
-  orderOnMarketPlace  String @map("order_on_market_place")
+  id                  Int       @id @default(autoincrement())
+  orderOnMarketPlace  String    @map("order_on_market_place")
   jsonb               Json
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
+  @@index([orderOnMarketPlace])
+  @@index([createdAt])
   @@map("order")
+}
+
+model LogisticsShippedOrders {
+  id                        Int       @id @default(autoincrement())
+  sku                       String    @map("sku")
+  orderOnMarketPlace        String    @map("order_on_market_place")
+  status                    String    @default("pending") @map("status")
+  uploads                   String[]  @map("uploads")
+  ordersJsonb               Json      @map("orders_jsonb")
+  rateQuotesResponseJsonb   Json      @map("rate_quotes_response_jsonb")
+  bolResponseJsonb          Json      @map("bol_response_jsonb")
+  pickupResponseJsonb       Json      @map("pickup_response_jsonb")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  @@index([sku])
+  @@index([orderOnMarketPlace])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("Logistics_Shippped_Orders")
+}
+
+model ShippingCompanyToken {
+  id                  Int     @id @default(autoincrement())
+  shippingCompanyName String  @unique @map("shipping_company_name")
+  token               String  @map("token")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([shippingCompanyName])
+  @@map("shipping_company_token")
+}
+
+model ThreePlGigaFedex {
+  id           Int       @id @default(autoincrement())
+  trackingNo   String    @map("tracking_no")
+  fedexJson    Json      @map("fedex_json")
+  uploadArray  String[]  @map("upload_array")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@index([trackingNo])
+  @@map("three_pl_giga_fedex")
 }
 

@@ -95,10 +95,30 @@ export const addOrder = async (req, res, next) => {
 
 export const getAllOrdersHandler = async (req, res, next) => {
   try {
-    const orders = await getAllOrders();
+    // Extract pagination params from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    
+    // Extract optional filter params
+    const orderOnMarketPlace = req.query.orderOnMarketPlace;
+    const where = {};
+    if (orderOnMarketPlace) {
+      where.orderOnMarketPlace = {
+        contains: orderOnMarketPlace,
+        mode: 'insensitive', // Case-insensitive search
+      };
+    }
+    
+    // Get paginated orders
+    const result = await getAllOrders({
+      page,
+      limit,
+      where,
+    });
+    
     res.json({
-      count: orders.length,
-      orders,
+      success: true,
+      ...result,
     });
   } catch (error) {
     console.error('Error fetching orders:', error);
