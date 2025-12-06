@@ -27,7 +27,7 @@ export const createBillOfLading = async (companyName, bearerToken, requestBody) 
     
     // Validate normalized request body (after normalization, phone numbers should be in correct format)
     try {
-      validateRequestBody(normalizedBody);
+      validateRequestBody(normalizedBody, companyName);
     } catch (validationError) {
       console.error('BOL Validation Error:', validationError.message);
       throw validationError;
@@ -404,7 +404,7 @@ const removeNullValues = (obj) => {
 };
 
 // Helper function to validate request body structure
-const validateRequestBody = (requestBody) => {
+const validateRequestBody = (requestBody, companyName) => {
   if (!requestBody || typeof requestBody !== 'object') {
     throw new ValidationError('Request body must be a valid object');
   }
@@ -416,104 +416,120 @@ const validateRequestBody = (requestBody) => {
 
   const bol = requestBody.bol;
 
-  // Validate requester
-  if (!bol.requester || !bol.requester.role) {
-    throw new ValidationError('BOL must contain requester with role');
-  }
-
-  // Validate consignee
-  if (!bol.consignee) {
-    throw new ValidationError('BOL must contain consignee information');
-  }
-  if (!bol.consignee.address || !bol.consignee.address.addressLine1 || !bol.consignee.address.cityName || 
-      !bol.consignee.address.stateCd || !bol.consignee.address.postalCd) {
-    throw new ValidationError('Consignee must have complete address (addressLine1, cityName, stateCd, postalCd)');
-  }
-  if (!bol.consignee.contactInfo || !bol.consignee.contactInfo.companyName) {
-    throw new ValidationError('Consignee must have contactInfo with companyName');
-  }
-  // Validate consignee phone number (XPO requires phone number in NNN-NNNNNNN format)
-  if (!bol.consignee.contactInfo.phone || !bol.consignee.contactInfo.phone.phoneNbr) {
-    throw new ValidationError('Consignee must have a phone number');
-  }
-  const consigneePhoneNbr = bol.consignee.contactInfo.phone.phoneNbr.trim();
-  // Check if phone number is empty or just placeholder
-  if (!consigneePhoneNbr || consigneePhoneNbr === '+1' || consigneePhoneNbr === '1') {
-    throw new ValidationError('Consignee must have a valid phone number');
-  }
-  // Validate format: NNN-NNNNNNN (3 digits, hyphen, 7 digits)
-  if (!consigneePhoneNbr.match(/^\d{3}-\d{7}$/)) {
-    throw new ValidationError('Consignee phone number format should be NNN-NNNNNNN (area code and phone number, respectively)');
-  }
-
-  // Validate shipper
-  if (!bol.shipper) {
-    throw new ValidationError('BOL must contain shipper information');
-  }
-  if (!bol.shipper.address || !bol.shipper.address.addressLine1 || !bol.shipper.address.cityName || 
-      !bol.shipper.address.stateCd || !bol.shipper.address.postalCd) {
-    throw new ValidationError('Shipper must have complete address (addressLine1, cityName, stateCd, postalCd)');
-  }
-  if (!bol.shipper.contactInfo || !bol.shipper.contactInfo.companyName) {
-    throw new ValidationError('Shipper must have contactInfo with companyName');
-  }
-  // Validate shipper phone number (XPO requires phone number in NNN-NNNNNNN format)
-  if (!bol.shipper.contactInfo.phone || !bol.shipper.contactInfo.phone.phoneNbr) {
-    throw new ValidationError('Shipper must have a phone number');
-  }
-  const shipperPhoneNbr = bol.shipper.contactInfo.phone.phoneNbr.trim();
-  // Check if phone number is empty or just placeholder
-  if (!shipperPhoneNbr || shipperPhoneNbr === '+1' || shipperPhoneNbr === '1') {
-    throw new ValidationError('Shipper must have a valid phone number');
-  }
-  // Validate format: NNN-NNNNNNN (3 digits, hyphen, 7 digits)
-  if (!shipperPhoneNbr.match(/^\d{3}-\d{7}$/)) {
-    throw new ValidationError('Shipper phone number format should be NNN-NNNNNNN (area code and phone number, respectively)');
-  }
-
-  // Validate billToCust
-  if (!bol.billToCust) {
-    throw new ValidationError('BOL must contain billToCust information');
-  }
-  if (!bol.billToCust.address || !bol.billToCust.address.addressLine1 || !bol.billToCust.address.cityName || 
-      !bol.billToCust.address.stateCd || !bol.billToCust.address.postalCd) {
-    throw new ValidationError('BillToCust must have complete address (addressLine1, cityName, stateCd, postalCd)');
-  }
-  if (!bol.billToCust.contactInfo || !bol.billToCust.contactInfo.companyName) {
-    throw new ValidationError('BillToCust must have contactInfo with companyName');
-  }
-  // Validate billToCust phone number format (XPO requires NNN-NNNNNNN format)
-  if (bol.billToCust.contactInfo.phone && bol.billToCust.contactInfo.phone.phoneNbr) {
-    const phoneNbr = bol.billToCust.contactInfo.phone.phoneNbr.trim();
-    if (phoneNbr && !phoneNbr.match(/^\d{3}-\d{7}$/)) {
-      throw new ValidationError('Bill to customer phone number format should be NNN-NNNNNNN (area code and phone number, respectively)');
+  // Company-specific validation
+  const normalizedCompanyName = companyName?.toLowerCase();
+  
+  if (normalizedCompanyName === 'estes') {
+    // Estes API validation
+    // Validate requester (Estes uses requestorRole)
+    if (!bol.requestorRole) {
+      throw new ValidationError('BOL must contain requestorRole');
     }
-  }
+    
+    // Estes uses origin/destination structure, not consignee/shipper
+    // Skip XPO-specific validation for Estes
+    return; // Early return for Estes - different structure
+  } else {
+    // XPO API validation (default)
+    // Validate requester (XPO uses requester.role)
+    if (!bol.requester || !bol.requester.role) {
+      throw new ValidationError('BOL must contain requester with role');
+    }
 
-  // Validate commodityLine
-  if (!bol.commodityLine || !Array.isArray(bol.commodityLine) || bol.commodityLine.length === 0) {
-    throw new ValidationError('BOL must contain at least one commodity in commodityLine array');
-  }
+    // Validate consignee
+    if (!bol.consignee) {
+      throw new ValidationError('BOL must contain consignee information');
+    }
+    if (!bol.consignee.address || !bol.consignee.address.addressLine1 || !bol.consignee.address.cityName || 
+        !bol.consignee.address.stateCd || !bol.consignee.address.postalCd) {
+      throw new ValidationError('Consignee must have complete address (addressLine1, cityName, stateCd, postalCd)');
+    }
+    if (!bol.consignee.contactInfo || !bol.consignee.contactInfo.companyName) {
+      throw new ValidationError('Consignee must have contactInfo with companyName');
+    }
+    // Validate consignee phone number (XPO requires phone number in NNN-NNNNNNN format)
+    if (!bol.consignee.contactInfo.phone || !bol.consignee.contactInfo.phone.phoneNbr) {
+      throw new ValidationError('Consignee must have a phone number');
+    }
+    const consigneePhoneNbr = bol.consignee.contactInfo.phone.phoneNbr.trim();
+    // Check if phone number is empty or just placeholder
+    if (!consigneePhoneNbr || consigneePhoneNbr === '+1' || consigneePhoneNbr === '1') {
+      throw new ValidationError('Consignee must have a valid phone number');
+    }
+    // Validate format: NNN-NNNNNNN (3 digits, hyphen, 7 digits)
+    if (!consigneePhoneNbr.match(/^\d{3}-\d{7}$/)) {
+      throw new ValidationError('Consignee phone number format should be NNN-NNNNNNN (area code and phone number, respectively)');
+    }
 
-  // Validate each commodity
-  bol.commodityLine.forEach((commodity, index) => {
-    if (!commodity.pieceCnt || commodity.pieceCnt < 1) {
-      throw new ValidationError(`Commodity at index ${index} must have pieceCnt >= 1`);
+    // Validate shipper
+    if (!bol.shipper) {
+      throw new ValidationError('BOL must contain shipper information');
     }
-    if (!commodity.packaging || !commodity.packaging.packageCd) {
-      throw new ValidationError(`Commodity at index ${index} must have packaging with packageCd`);
+    if (!bol.shipper.address || !bol.shipper.address.addressLine1 || !bol.shipper.address.cityName || 
+        !bol.shipper.address.stateCd || !bol.shipper.address.postalCd) {
+      throw new ValidationError('Shipper must have complete address (addressLine1, cityName, stateCd, postalCd)');
     }
-    if (!commodity.grossWeight || typeof commodity.grossWeight.weight !== 'number' || commodity.grossWeight.weight <= 0) {
-      throw new ValidationError(`Commodity at index ${index} must have grossWeight with weight > 0`);
+    if (!bol.shipper.contactInfo || !bol.shipper.contactInfo.companyName) {
+      throw new ValidationError('Shipper must have contactInfo with companyName');
     }
-    if (!commodity.desc || typeof commodity.desc !== 'string' || commodity.desc.trim().length === 0) {
-      throw new ValidationError(`Commodity at index ${index} must have a non-empty description`);
+    // Validate shipper phone number (XPO requires phone number in NNN-NNNNNNN format)
+    if (!bol.shipper.contactInfo.phone || !bol.shipper.contactInfo.phone.phoneNbr) {
+      throw new ValidationError('Shipper must have a phone number');
     }
-  });
+    const shipperPhoneNbr = bol.shipper.contactInfo.phone.phoneNbr.trim();
+    // Check if phone number is empty or just placeholder
+    if (!shipperPhoneNbr || shipperPhoneNbr === '+1' || shipperPhoneNbr === '1') {
+      throw new ValidationError('Shipper must have a valid phone number');
+    }
+    // Validate format: NNN-NNNNNNN (3 digits, hyphen, 7 digits)
+    if (!shipperPhoneNbr.match(/^\d{3}-\d{7}$/)) {
+      throw new ValidationError('Shipper phone number format should be NNN-NNNNNNN (area code and phone number, respectively)');
+    }
 
-  // Validate chargeToCd
-  if (!bol.chargeToCd || typeof bol.chargeToCd !== 'string') {
-    throw new ValidationError('BOL must have chargeToCd (e.g., "P" for Prepaid, "C" for Collect)');
+    // Validate billToCust
+    if (!bol.billToCust) {
+      throw new ValidationError('BOL must contain billToCust information');
+    }
+    if (!bol.billToCust.address || !bol.billToCust.address.addressLine1 || !bol.billToCust.address.cityName || 
+        !bol.billToCust.address.stateCd || !bol.billToCust.address.postalCd) {
+      throw new ValidationError('BillToCust must have complete address (addressLine1, cityName, stateCd, postalCd)');
+    }
+    if (!bol.billToCust.contactInfo || !bol.billToCust.contactInfo.companyName) {
+      throw new ValidationError('BillToCust must have contactInfo with companyName');
+    }
+    // Validate billToCust phone number format (XPO requires NNN-NNNNNNN format)
+    if (bol.billToCust.contactInfo.phone && bol.billToCust.contactInfo.phone.phoneNbr) {
+      const phoneNbr = bol.billToCust.contactInfo.phone.phoneNbr.trim();
+      if (phoneNbr && !phoneNbr.match(/^\d{3}-\d{7}$/)) {
+        throw new ValidationError('Bill to customer phone number format should be NNN-NNNNNNN (area code and phone number, respectively)');
+      }
+    }
+
+    // Validate commodityLine
+    if (!bol.commodityLine || !Array.isArray(bol.commodityLine) || bol.commodityLine.length === 0) {
+      throw new ValidationError('BOL must contain at least one commodity in commodityLine array');
+    }
+
+    // Validate each commodity
+    bol.commodityLine.forEach((commodity, index) => {
+      if (!commodity.pieceCnt || commodity.pieceCnt < 1) {
+        throw new ValidationError(`Commodity at index ${index} must have pieceCnt >= 1`);
+      }
+      if (!commodity.packaging || !commodity.packaging.packageCd) {
+        throw new ValidationError(`Commodity at index ${index} must have packaging with packageCd`);
+      }
+      if (!commodity.grossWeight || typeof commodity.grossWeight.weight !== 'number' || commodity.grossWeight.weight <= 0) {
+        throw new ValidationError(`Commodity at index ${index} must have grossWeight with weight > 0`);
+      }
+      if (!commodity.desc || typeof commodity.desc !== 'string' || commodity.desc.trim().length === 0) {
+        throw new ValidationError(`Commodity at index ${index} must have a non-empty description`);
+      }
+    });
+
+    // Validate chargeToCd
+    if (!bol.chargeToCd || typeof bol.chargeToCd !== 'string') {
+      throw new ValidationError('BOL must have chargeToCd (e.g., "P" for Prepaid, "C" for Collect)');
+    }
   }
 };
 
