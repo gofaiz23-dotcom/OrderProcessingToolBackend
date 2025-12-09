@@ -95,12 +95,25 @@ export const createThreePlGigaFedexHandler = asyncHandler(async (req, res, next)
     try {
       const result = await createMultipleThreePlGigaFedex(records);
 
+      // Build message based on created vs skipped
+      let message = `Successfully processed ${result.count} 3PL Giga Fedex record(s)`;
+      if (result.created > 0 && result.skipped > 0) {
+        message += ` (${result.created} created, ${result.skipped} skipped - tracking numbers already exist)`;
+      } else if (result.created > 0) {
+        message += ` (${result.created} created)`;
+      } else if (result.skipped > 0) {
+        message += ` (${result.skipped} skipped - all tracking numbers already exist in database)`;
+      }
+
       res.status(201).json({
-        message: `Successfully created ${result.count} 3PL Giga Fedex record(s)`,
+        message,
         data: result,
       });
     } catch (error) {
-      // No need to check for P2002 (unique constraint) since trackingNo is no longer unique
+      // Handle Prisma unique constraint error (P2002)
+      if (error.code === 'P2002' && error.meta?.target?.includes('trackingNo')) {
+        throw new ConflictError('A record with this tracking number already exists');
+      }
       throw error;
     }
   } else {
@@ -115,18 +128,32 @@ export const createThreePlGigaFedexHandler = asyncHandler(async (req, res, next)
     const parsedFedexJson = parseFedexJson(fedexJson);
 
     try {
+      // Create new record (model will check if exists and return existing if found)
       const record = await createThreePlGigaFedex({
         trackingNo,
         fedexJson: parsedFedexJson,
         uploadArray: uploadArray,
       });
 
-      res.status(201).json({
-        message: '3PL Giga Fedex record created successfully',
-        data: record,
-      });
+      // Check if record was created or skipped based on status field
+      if (record.status === 'skipped') {
+        // If the record was skipped because it already existed
+        res.status(200).json({
+          message: '3PL Giga Fedex record already exists (tracking number found in database, no changes made)',
+          data: record,
+        });
+      } else {
+        // If a new record was created
+        res.status(201).json({
+          message: '3PL Giga Fedex record created successfully',
+          data: record,
+        });
+      }
     } catch (error) {
-      // No need to check for P2002 (unique constraint) since trackingNo is no longer unique
+      // Handle Prisma unique constraint error (P2002)
+      if (error.code === 'P2002' && error.meta?.target?.includes('trackingNo')) {
+        throw new ConflictError('A record with this tracking number already exists');
+      }
       throw error;
     }
   }

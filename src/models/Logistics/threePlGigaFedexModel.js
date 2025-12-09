@@ -2,53 +2,117 @@ import { prisma } from '../../config/prismaClient.js';
 
 /**
  * Create a new 3PL Giga Fedex record
+ * If trackingNo already exists, returns existing record without updating
+ * If trackingNo doesn't exist, creates new record
  * @param {Object} data - Record data
- * @param {string} data.trackingNo - Tracking number
+ * @param {string} data.trackingNo - Tracking number (must be unique)
  * @param {Object} data.fedexJson - FedEx JSON data
- * @param {string[]} data.uploadArray - Array of file paths (comma-separated)
- * @returns {Promise<Object>} Created record
+ * @param {string[]} data.uploadArray - Array of file paths
+ * @returns {Promise<Object>} Created record or existing record if trackingNo already exists
  */
 export const createThreePlGigaFedex = async (data) => {
   const { trackingNo, fedexJson, uploadArray } = data;
 
-  return await prisma.threePlGigaFedex.create({
+  // Check if record with this trackingNo already exists
+  const existingRecord = await prisma.threePlGigaFedex.findUnique({
+    where: {
+      trackingNo: trackingNo,
+    },
+  });
+
+  // If exists, return existing record with status indicator
+  if (existingRecord) {
+    return {
+      ...existingRecord,
+      status: 'skipped', // Custom status to indicate it was skipped
+      message: 'Tracking number already exists, no changes made',
+    };
+  }
+
+  // If not exists, create new record
+  const newRecord = await prisma.threePlGigaFedex.create({
     data: {
       trackingNo,
       fedexJson: fedexJson || {},
       uploadArray: uploadArray || [],
     },
   });
+
+  return {
+    ...newRecord,
+    status: 'created', // Custom status to indicate it was created
+  };
 };
 
 /**
  * Create multiple 3PL Giga Fedex records
+ * If trackingNo already exists, skips it (doesn't update, doesn't add)
+ * Only creates records with new tracking numbers
  * @param {Array<Object>} records - Array of record data
- * @returns {Promise<Object>} Created records with count
+ * @returns {Promise<Object>} Created records with count of created vs skipped
  */
 export const createMultipleThreePlGigaFedex = async (records) => {
-  const data = records.map((record) => ({
-    trackingNo: record.trackingNo,
-    fedexJson: record.fedexJson || {},
-    uploadArray: record.uploadArray || [],
-  }));
+  // Get all tracking numbers from input
+  const trackingNos = records.map((r) => r.trackingNo);
 
-  // Use createMany - duplicates are now allowed (no unique constraint)
-  const result = await prisma.threePlGigaFedex.createMany({
-    data,
+  // Check which tracking numbers already exist in database
+  const existingRecords = await prisma.threePlGigaFedex.findMany({
+    where: {
+      trackingNo: {
+        in: trackingNos,
+      },
+    },
+    select: {
+      trackingNo: true,
+    },
   });
 
-  return {
-    count: result.count,
-    records: await prisma.threePlGigaFedex.findMany({
-      where: {
-        trackingNo: {
-          in: records.map((r) => r.trackingNo),
+  // Create set of existing tracking numbers for quick lookup
+  const existingTrackingNos = new Set(existingRecords.map((r) => r.trackingNo));
+
+  // Filter out records that already exist (only keep new ones)
+  const newRecords = records.filter((record) => !existingTrackingNos.has(record.trackingNo));
+
+  let createdCount = 0;
+  let skippedCount = existingTrackingNos.size;
+  let createdRecords = [];
+
+  // Only create records that don't exist
+  if (newRecords.length > 0) {
+    const dataToCreate = newRecords.map((record) => ({
+      trackingNo: record.trackingNo,
+      fedexJson: record.fedexJson || {},
+      uploadArray: record.uploadArray || [],
+    }));
+
+    // Use createMany for better performance
+    const createResult = await prisma.threePlGigaFedex.createMany({
+      data: dataToCreate,
+      skipDuplicates: true, // Extra safety
+    });
+
+    createdCount = createResult.count;
+
+    // Fetch the created records
+    if (createdCount > 0) {
+      createdRecords = await prisma.threePlGigaFedex.findMany({
+        where: {
+          trackingNo: {
+            in: newRecords.map((r) => r.trackingNo),
+          },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    }),
+      });
+    }
+  }
+
+  // Fetch existing records that were skipped
+  const skippedRecords = existingRecords;
+
+  return {
+    count: records.length,
+    created: createdCount,
+    skipped: skippedCount,
+    records: [...createdRecords, ...skippedRecords], // Return both created and skipped records
   };
 };
 
