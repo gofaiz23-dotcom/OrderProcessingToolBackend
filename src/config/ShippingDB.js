@@ -481,28 +481,34 @@ export const xpo = [
         },
         bodyTemplate: {
           shipmentInfo: {
-            paymentTermCd: null, // string (e.g., "P")
-            shipmentDate: null, // string (ISO 8601 format, e.g., "2025-12-05T12:00:00.000Z")
-            accessorials: null, // array
-            shipper: {
-              address: {
-                postalCd: null, // string (e.g., "10001")
+            accessorials: [
+              {
+                accessorialCd: null, // string (e.g., "DLG")
+                accessorialDesc: null, // string (e.g., "DLG DEST LIFTGATE SERVICE")
+                accessorialType: null, // string (e.g., "Destination")
               },
-            },
-            consignee: {
-              address: {
-                postalCd: null, // string (e.g., "90210")
+              {
+                accessorialCd: null, // string (e.g., "RSD")
+                accessorialDesc: null, // string (e.g., "RSD DEST RESIDENTIAL DELIVERY")
+                accessorialType: null, // string (e.g., "Destination")
               },
-            },
+              {
+                accessorialCd: null, // string (e.g., "DNC")
+                accessorialDesc: null, // string (e.g., "DNC DEST NOTIFICATION")
+                accessorialType: null, // string (e.g., "Destination")
+              },
+            ],
             commodity: [
               {
                 pieceCnt: null, // number
-                packageCode: null, // string (e.g., "BOX")
+                packageCode: null, // string (e.g., "PLT")
                 grossWeight: {
                   weight: null, // number
-                  weightUom: null, // string (e.g., "LBS")
+                  weightUom: null, // string (e.g., "lbs")
                 },
-                nmfcClass: null, // string (e.g., "85")
+                desc: null, // string (e.g., "KD furniture")
+                nmfcClass: null, // string (e.g., "250")
+                nmfcItemCd: null, // string (e.g., "079300")
                 hazmatInd: null, // boolean
                 dimensions: {
                   length: null, // number
@@ -512,6 +518,34 @@ export const xpo = [
                 },
               },
             ],
+            freezableInd: null, // boolean
+            hazmatInd: null, // boolean
+            paymentTermCd: null, // string (e.g., "P")
+            shipmentDate: null, // string (ISO 8601 format, e.g., "2025-12-08T17:00:00.000Z")
+            shipper: {
+              acctInstId: null, // string (e.g., "531230")
+              // accountCode: null, // string (e.g., "AMQKGULA002")
+              // accountClass: null, // string (e.g., "M")
+              // address: {
+              //   streetAddress1: null, // string (e.g., "10506 SHOEMAKER AVE")
+              //   streetAddress2: null, // string
+              //   city: null, // string (e.g., "SANTA FE SPRINGS")
+              //   stateProvinceCd: null, // string (e.g., "CA")
+              //   postalCd: null, // string (e.g., "90670")
+              //   countryCd: null, // string (e.g., "US")
+              // }
+            },
+            consignee: {
+              address: {
+                postalCd: null, // string (e.g., "08505")
+                countryCd: null, // string (e.g., "US")
+              },
+            },
+            bill2Party: {
+              address: {
+                usZip4: null, // string
+              },
+            },
             palletCnt: null, // number
             linealFt: null, // number
           },
