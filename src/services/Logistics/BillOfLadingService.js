@@ -384,6 +384,56 @@ const removeNullValues = (obj) => {
         continue;
       }
       
+      // Special handling for pickupInfo - only include if it has meaningful data
+      if (key === 'pickupInfo' && typeof obj[key] === 'object' && obj[key] !== null) {
+        const pickupInfo = obj[key];
+        const hasPickupDate = pickupInfo.pkupDate && pickupInfo.pkupDate !== '';
+        const hasPickupTime = pickupInfo.pkupTime && pickupInfo.pkupTime !== '';
+        const hasDockCloseTime = pickupInfo.dockCloseTime && pickupInfo.dockCloseTime !== '';
+        const hasContact = pickupInfo.contact && 
+          (pickupInfo.contact.companyName || pickupInfo.contact.fullName || 
+           (pickupInfo.contact.phone && pickupInfo.contact.phone.phoneNbr));
+        
+        // Only include pickupInfo if at least one meaningful field exists
+        if (hasPickupDate || hasPickupTime || hasDockCloseTime || hasContact) {
+          const cleanedPickupInfo = removeNullValues(pickupInfo);
+          if (cleanedPickupInfo && typeof cleanedPickupInfo === 'object' && Object.keys(cleanedPickupInfo).length > 0) {
+            cleaned[key] = cleanedPickupInfo;
+          }
+        }
+        continue;
+      }
+      
+      // Special handling for declaredValueAmt - only include if amt is not null/undefined
+      if (key === 'declaredValueAmt' && typeof obj[key] === 'object' && obj[key] !== null) {
+        if (obj[key].amt !== null && obj[key].amt !== undefined) {
+          const cleanedValue = removeNullValues(obj[key]);
+          if (cleanedValue && typeof cleanedValue === 'object' && Object.keys(cleanedValue).length > 0) {
+            cleaned[key] = cleanedValue;
+          }
+        }
+        continue;
+      }
+      
+      // Special handling for declaredValueAmtPerLb - only include if amt is not null/undefined
+      if (key === 'declaredValueAmtPerLb' && typeof obj[key] === 'object' && obj[key] !== null) {
+        if (obj[key].amt !== null && obj[key].amt !== undefined) {
+          const cleanedValue = removeNullValues(obj[key]);
+          if (cleanedValue && typeof cleanedValue === 'object' && Object.keys(cleanedValue).length > 0) {
+            cleaned[key] = cleanedValue;
+          }
+        }
+        continue;
+      }
+      
+      // Special handling for excessLiabilityChargeInit - only include if it's not null/undefined/empty
+      if (key === 'excessLiabilityChargeInit') {
+        if (obj[key] !== null && obj[key] !== undefined && obj[key] !== '') {
+          cleaned[key] = obj[key];
+        }
+        continue;
+      }
+      
       const value = removeNullValues(obj[key]);
       // Only include the key if the value is not undefined/null
       if (value !== undefined && value !== null) {
