@@ -63,6 +63,17 @@ export const getAllLogisticsShippedOrdersHandler = asyncHandler(async (req, res,
   const orderOnMarketPlace = req.query.orderOnMarketPlace;
   const status = req.query.status;
   
+  // Extract bolResponseJsonb filter params
+  const bolVersion = req.query.bolVersion;
+  const messageStatusCode = req.query.messageStatusCode;
+  const messageStatusStatus = req.query.messageStatusStatus;
+  const messageStatusMessage = req.query.messageStatusMessage;
+  const transactionDate = req.query.transactionDate;
+  const transactionDateStart = req.query.transactionDateStart;
+  const transactionDateEnd = req.query.transactionDateEnd;
+  const referencePro = req.query.referencePro;
+  const shipmentConfirmationNumber = req.query.shipmentConfirmationNumber;
+  
   // Extract sort params (default: createdAt desc)
   const sortBy = req.query.sortBy || 'createdAt';
   const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
@@ -86,6 +97,104 @@ export const getAllLogisticsShippedOrdersHandler = asyncHandler(async (req, res,
       equals: status,
       mode: 'insensitive',
     };
+  }
+  
+  // Build JSONB filters for bolResponseJsonb
+  // Note: Prisma JSON filtering uses path array notation
+  const bolFilters = [];
+  
+  if (bolVersion) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['version'],
+        equals: bolVersion,
+      },
+    });
+  }
+  
+  if (messageStatusCode) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['messageStatus', 'code'],
+        equals: messageStatusCode,
+      },
+    });
+  }
+  
+  if (messageStatusStatus) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['messageStatus', 'status'],
+        equals: messageStatusStatus,
+      },
+    });
+  }
+  
+  if (messageStatusMessage) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['messageStatus', 'message'],
+        string_contains: messageStatusMessage,
+      },
+    });
+  }
+  
+  if (transactionDate) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['transactionDate'],
+        equals: transactionDate,
+      },
+    });
+  }
+  
+  // Date range filtering for transactionDate
+  if (transactionDateStart || transactionDateEnd) {
+    const dateFilterConditions = [];
+    if (transactionDateStart) {
+      dateFilterConditions.push({
+        bolResponseJsonb: {
+          path: ['transactionDate'],
+          gte: transactionDateStart,
+        },
+      });
+    }
+    if (transactionDateEnd) {
+      dateFilterConditions.push({
+        bolResponseJsonb: {
+          path: ['transactionDate'],
+          lte: transactionDateEnd,
+        },
+      });
+    }
+    bolFilters.push(...dateFilterConditions);
+  }
+  
+  if (referencePro) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['referenceNumbers', 'pro'],
+        equals: referencePro,
+      },
+    });
+  }
+  
+  if (shipmentConfirmationNumber) {
+    bolFilters.push({
+      bolResponseJsonb: {
+        path: ['referenceNumbers', 'shipmentConfirmationNumber'],
+        equals: shipmentConfirmationNumber,
+      },
+    });
+  }
+  
+  // Combine all filters with AND logic
+  if (bolFilters.length > 0) {
+    if (where.AND) {
+      where.AND = [...where.AND, ...bolFilters];
+    } else {
+      where.AND = bolFilters;
+    }
   }
   
   // Build orderBy clause
