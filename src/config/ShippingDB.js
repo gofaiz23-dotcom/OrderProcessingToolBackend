@@ -658,6 +658,25 @@ export const xpo = [
                 },
               ],
             },
+            pickupInfo: {
+              pkupDate: null, // string (ISO 8601 format, e.g., "2025-12-15T12:00:00-08:00")
+              pkupTime: null, // string (ISO 8601 format, e.g., "2025-12-15T12:00:00-08:00")
+              dockCloseTime: null, // string (ISO 8601 format, e.g., "2025-12-15T13:00:00-08:00")
+              contact: {
+                companyName: null, // string
+                fullName: null, // string
+                phone: {
+                  phoneNbr: null, // string
+                },
+              },
+            },
+            declaredValueAmt: {
+              amt: null, // number
+            },
+            declaredValueAmtPerLb: {
+              amt: null, // number
+            },
+            excessLiabilityChargeInit: null, // string
           },
           autoAssignPro: null, // boolean
         },
