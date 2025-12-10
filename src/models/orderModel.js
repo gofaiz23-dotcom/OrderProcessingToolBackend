@@ -10,26 +10,8 @@ export const createOrder = async (orderOnMarketPlace, jsonb) => {
 };
 
 export const createMultipleOrders = async (orders) => {
-  // Optimized: Use createMany for better performance with large datasets
-  // Batch in chunks of 1000 to avoid query size limits
-  const BATCH_SIZE = 1000;
-  const results = [];
-  
-  for (let i = 0; i < orders.length; i += BATCH_SIZE) {
-    const batch = orders.slice(i, i + BATCH_SIZE);
-    const batchResult = await prisma.order.createMany({
-      data: batch.map(order => ({
-        orderOnMarketPlace: order.orderOnMarketPlace,
-        jsonb: order.jsonb,
-      })),
-      skipDuplicates: true,
-    });
-    results.push(batchResult);
-  }
-  
-  // If you need the created records, fetch them after creation
+  // For small batches (<= 100), use transaction with individual creates to get the created records
   if (orders.length <= 100) {
-    // For small batches, use transaction with create
     return await prisma.$transaction(
       orders.map((order) =>
         prisma.order.create({
@@ -42,7 +24,28 @@ export const createMultipleOrders = async (orders) => {
     );
   }
   
-  return results;
+  // For large batches (> 100), use createMany for better performance
+  // Batch in chunks of 1000 to avoid query size limits
+  const BATCH_SIZE = 1000;
+  let totalCreated = 0;
+  
+  for (let i = 0; i < orders.length; i += BATCH_SIZE) {
+    const batch = orders.slice(i, i + BATCH_SIZE);
+    const batchResult = await prisma.order.createMany({
+      data: batch.map(order => ({
+        orderOnMarketPlace: order.orderOnMarketPlace,
+        jsonb: order.jsonb,
+      })),
+      skipDuplicates: true,
+    });
+    totalCreated += batchResult.count;
+  }
+  
+  // Return summary for large batches
+  return {
+    count: totalCreated,
+    message: `${totalCreated} order(s) created successfully`,
+  };
 };
 
 // Optimized: Add pagination to handle 1 lakh+ records

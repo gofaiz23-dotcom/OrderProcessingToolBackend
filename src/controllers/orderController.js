@@ -61,13 +61,23 @@ export const addOrder = async (req, res, next) => {
       }
 
       // Create all orders
-      const orders = await createMultipleOrders(validatedOrders);
+      const result = await createMultipleOrders(validatedOrders);
 
-      res.status(201).json({
-        message: `${orders.length} order(s) created successfully`,
-        count: orders.length,
-        orders,
-      });
+      // Handle both array (small batches) and object (large batches) return types
+      if (Array.isArray(result)) {
+        res.status(201).json({
+          message: `${result.length} order(s) created successfully`,
+          count: result.length,
+          orders: result,
+        });
+      } else {
+        // Large batch - result is an object with count and message
+        res.status(201).json({
+          message: result.message || `${result.count} order(s) created successfully`,
+          count: result.count,
+          orders: [], // createMany doesn't return individual records
+        });
+      }
     } else {
       // Handle single order
       try {
