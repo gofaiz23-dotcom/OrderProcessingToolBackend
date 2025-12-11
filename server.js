@@ -10,6 +10,6 @@ initializeUploadsDirectory();
 initializeThreePlGigaFedexUploadsDirectory();
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server running at http://192.168.0.23:${port}`);
 });
 
