@@ -98,5 +98,10 @@ export const config = {
       apiKey: process.env.XPO_API_KEY || '',
     },
   },
+  walmart: {
+    clientId: process.env.WALMART_CLIENT_ID || '',
+    clientSecret: process.env.WALMART_CLIENT_SECRET || '',
+    tokenUrl: 'https://marketplace.walmartapis.com/v3/token',
+  },
 };
 
