@@ -68,6 +68,73 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
       const parsedBolJsonb = typeof bolResponseJsonb === 'string' ? JSON.parse(bolResponseJsonb) : bolResponseJsonb;
       const parsedPickupJsonb = typeof pickupResponseJsonb === 'string' ? JSON.parse(pickupResponseJsonb) : pickupResponseJsonb;
 
+      // Check if order already exists with this SKU
+      const existingOrders = await getAllLogisticsShippedOrders({
+        page: 1,
+        limit: 1,
+        where: {
+          sku: {
+            equals: sku,
+            mode: 'insensitive',
+          },
+        },
+      });
+
+      // If order exists and has shiptypes and subSKUs, skip creation
+      if (existingOrders.orders && existingOrders.orders.length > 0) {
+        const existingOrder = existingOrders.orders[0];
+        const existingOrdersJsonb = existingOrder.ordersJsonb || {};
+        const existingShiptypes = existingOrder.shippingType || existingOrdersJsonb.shiptypes || existingOrdersJsonb.shippingType;
+        const existingSubSKUs = existingOrder.subSKUs || 
+          (existingOrdersJsonb.subSKUs ? 
+            (Array.isArray(existingOrdersJsonb.subSKUs) ? existingOrdersJsonb.subSKUs : 
+             typeof existingOrdersJsonb.subSKUs === 'string' ? existingOrdersJsonb.subSKUs.split(',').map(s => s.trim()) : []) : 
+           []);
+        
+        // Check if new subSKUs are provided
+        const newSubSKUs = parsedOrdersJsonb?.subSKUs ? 
+          (Array.isArray(parsedOrdersJsonb.subSKUs) ? parsedOrdersJsonb.subSKUs : 
+           typeof parsedOrdersJsonb.subSKUs === 'string' ? parsedOrdersJsonb.subSKUs.split(',').map(s => s.trim()) : []) : 
+         [];
+        
+        // If order has shiptypes and subSKUs, and new subSKUs haven't changed, skip
+        if (existingShiptypes && existingSubSKUs.length > 0) {
+          const existingSubSKUsSorted = [...existingSubSKUs].sort().join(',');
+          const newSubSKUsSorted = newSubSKUs.length > 0 ? [...newSubSKUs].sort().join(',') : existingSubSKUsSorted;
+          
+          if (existingSubSKUsSorted === newSubSKUsSorted) {
+            // Order already exists with same data, skip creation
+            createdOrders.push(existingOrder);
+            continue;
+          } else {
+            // SubSKUs changed, update the existing order
+            const updateData = {
+              ordersJsonb: {
+                ...existingOrdersJsonb,
+                ...parsedOrdersJsonb,
+                shiptypes: parsedOrdersJsonb?.shiptypes || existingShiptypes,
+                subSKUs: parsedOrdersJsonb?.subSKUs || existingOrdersJsonb.subSKUs,
+              },
+            };
+            
+            if (parsedRateQuotesJsonb) {
+              updateData.rateQuotesResponseJsonb = parsedRateQuotesJsonb;
+            }
+            if (parsedBolJsonb) {
+              updateData.bolResponseJsonb = parsedBolJsonb;
+            }
+            if (parsedPickupJsonb) {
+              updateData.pickupResponseJsonb = parsedPickupJsonb;
+            }
+            
+            const updatedOrder = await updateLogisticsShippedOrder(existingOrder.id.toString(), updateData);
+            createdOrders.push(updatedOrder);
+            continue;
+          }
+        }
+      }
+
+      // Create new order if it doesn't exist or doesn't have shiptypes/subSKUs
       const order = await createLogisticsShippedOrder({
         sku,
         orderOnMarketPlace,
