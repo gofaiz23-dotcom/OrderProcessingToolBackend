@@ -23,12 +23,29 @@ export const getWalmartToken = async () => {
     throw new AuthenticationError('Walmart credentials are empty after trimming. Please check your .env file.');
   }
 
-  // Generate unique correlation ID (simple numeric format as per Walmart docs example)
-  const correlationId = Date.now().toString();
+  // Generate unique correlation ID (alphanumeric format like Postman)
+  // Generate random alphanumeric string similar to Postman's format
+  const generateCorrelationId = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+  const correlationId = generateCorrelationId();
 
   // Create Basic Auth header (ClientId:ClientSecret encoded in base64)
   // Walmart expects: Username = ClientId, Password = ClientSecret
-  const credentials = Buffer.from(`${trimmedClientId}:${trimmedClientSecret}`).toString('base64');
+  // Ensure no extra spaces or characters in the credentials string
+  const authString = `${trimmedClientId}:${trimmedClientSecret}`;
+  const credentials = Buffer.from(authString, 'utf8').toString('base64');
+  
+  // Verify encoding (for debugging)
+  const decoded = Buffer.from(credentials, 'base64').toString('utf8');
+  if (decoded !== authString) {
+    console.warn('Walmart Auth Encoding Warning: Decoded credentials do not match original');
+  }
 
   // Prepare request body (form-urlencoded)
   const body = new URLSearchParams({
@@ -38,75 +55,79 @@ export const getWalmartToken = async () => {
   const bodyString = body.toString();
   
   // Debug logging (remove in production or use proper logger)
-  console.log('Walmart Token Request Details:', {
-    url: tokenUrl,
-    method: 'POST',
-    clientIdLength: trimmedClientId.length,
-    clientSecretLength: trimmedClientSecret.length,
-    clientIdFirstChars: trimmedClientId.substring(0, 5) + '...',
-    correlationId,
-    body: bodyString,
-    credentialsLength: credentials.length,
-  });
-
+  
   try {
     // Prepare headers exactly as Walmart API requires
     // Walmart is very strict about header format - use exact casing and values
+    // Only include the headers that Walmart requires - fetch might add unwanted headers
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded',
       'WM_SVC.NAME': 'Walmart Marketplace',
       'WM_QOS.CORRELATION_ID': correlationId,
       'Authorization': `Basic ${credentials}`,
+      // Explicitly set Accept to avoid fetch adding unwanted headers
+      'Accept': '*/*',
     };
     
-    // Log the exact headers being sent (without sensitive data)
-    console.log('Walmart Request Headers:', {
-      'Content-Type': headers['Content-Type'],
-      'WM_SVC.NAME': headers['WM_SVC.NAME'],
-      'WM_QOS.CORRELATION_ID': headers['WM_QOS.CORRELATION_ID'],
-      'Authorization': 'Basic [REDACTED]',
-      'Body': bodyString,
-    });
+    
     
     // Make API call to Walmart
+    // Use signal to prevent fetch from adding User-Agent or other headers
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers,
       body: bodyString,
+      // Prevent fetch from modifying headers
+      redirect: 'follow',
     });
 
     if (!response.ok) {
       let errorMessage;
       let errorDetails = null;
+      let rawErrorText = '';
       try {
-        const errorText = await response.text();
-        errorMessage = errorText || ErrorMessages.API_ERROR(response.status);
+        rawErrorText = await response.text();
+        errorMessage = rawErrorText || ErrorMessages.API_ERROR(response.status);
+        
+        // Log the raw error response first
+        console.error('Walmart API Raw Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          rawErrorText: rawErrorText.substring(0, 1000), // First 1000 chars
+          fullLength: rawErrorText.length,
+        });
         
         // Try to parse error response (might be XML or JSON)
         try {
-          if (errorText.trim().startsWith('<')) {
+          if (rawErrorText.trim().startsWith('<')) {
             // XML error response
             const parser = new XMLParser();
-            errorDetails = parser.parse(errorText);
-          } else {
+            errorDetails = parser.parse(rawErrorText);
+          } else if (rawErrorText.trim().startsWith('{')) {
             // JSON error response
-            errorDetails = JSON.parse(errorText);
+            errorDetails = JSON.parse(rawErrorText);
+          } else {
+            // Plain text error
+            errorDetails = rawErrorText;
           }
         } catch (parseError) {
           // Keep the raw text if parsing fails
-          errorDetails = errorText;
+          errorDetails = rawErrorText;
+          console.error('Error parsing Walmart error response:', parseError.message);
         }
       } catch (e) {
         errorMessage = ErrorMessages.API_ERROR(response.status);
+        console.error('Error reading Walmart error response:', e.message);
       }
       
       // Log detailed error for debugging
       console.error('Walmart API Error Details:', {
         status: response.status,
         statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
+        responseHeaders: Object.fromEntries(response.headers.entries()),
         errorText: errorMessage,
         errorDetails,
+        rawErrorText: rawErrorText.substring(0, 500),
       });
       
       // Use the actual HTTP status code from the response

@@ -13,6 +13,7 @@ import LogisticsShippedOrdersRoutes from './routes/Logistics/LogisticsShippedOrd
 import ShipmentHistoryRoutes from './routes/Logistics/ShipmentHistoryRoutes.js';
 import ThreePlGigaFedexRoutes from './routes/Logistics/ThreePlGigaFedexRoutes.js';
 import walmartTokenRoutes from './routes/Walmart/walmartTokenRoutes.js';
+import walmartOrdersRoutes from './routes/Walmart/walmartOrdersRoutes.js';
 import { config } from './config/env.js';
 import { errorHandler } from './utils/error.js';
 import { apiLimiter, authLimiter, orderCreationLimiter } from './middleware/rateLimiter.js';
@@ -80,6 +81,7 @@ app.use(`${API_BASE_PATH}/Logistics`, LogisticsShippedOrdersRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, ShipmentHistoryRoutes);
 app.use(`${API_BASE_PATH}/Logistics`, ThreePlGigaFedexRoutes);
 app.use(`${API_BASE_PATH}/walmart`, walmartTokenRoutes);
+app.use(`${API_BASE_PATH}/walmart`, walmartOrdersRoutes);
 
 app.use(errorHandler);
 
