@@ -11,16 +11,23 @@ import {
 import { saveUploadedFiles } from '../../services/Logistics/LogisticsShippedOrdersService.js';
 import { NotFoundError, ValidationError, ErrorMessages, asyncHandler } from '../../utils/error.js';
 
-// POST - Create new logistics shipped order
+// POST - Create new logistics shipped order (supports single or bulk)
 export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, next) => {
-  const { sku, orderOnMarketPlace, ordersJsonb, rateQuotesResponseJsonb, bolResponseJsonb, pickupResponseJsonb } = req.body;
-
-  // Validate required fields
-  if (!sku || !orderOnMarketPlace) {
-    throw new ValidationError('sku and orderOnMarketPlace are required');
+  // Validate request body exists
+  if (!req.body) {
+    throw new ValidationError('Request body is required');
   }
 
-  // Handle file uploads
+  // Check if request body is an array (bulk) or single object
+  const isBulk = Array.isArray(req.body);
+  const ordersData = isBulk ? req.body : [req.body];
+
+  // Validate ordersData is not empty
+  if (!ordersData || ordersData.length === 0) {
+    throw new ValidationError('At least one order is required');
+  }
+
+  // Handle file uploads (shared across all orders in bulk)
   let uploads = [];
   if (req.files && req.files.length > 0) {
     try {
@@ -30,26 +37,79 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
     }
   }
 
-  // Parse JSON fields if they are strings
-  const parsedOrdersJsonb = typeof ordersJsonb === 'string' ? JSON.parse(ordersJsonb) : ordersJsonb;
-  const parsedRateQuotesJsonb = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
-  const parsedBolJsonb = typeof bolResponseJsonb === 'string' ? JSON.parse(bolResponseJsonb) : bolResponseJsonb;
-  const parsedPickupJsonb = typeof pickupResponseJsonb === 'string' ? JSON.parse(pickupResponseJsonb) : pickupResponseJsonb;
+  const createdOrders = [];
+  const errors = [];
 
-  const order = await createLogisticsShippedOrder({
-    sku,
-    orderOnMarketPlace,
-    uploads,
-    ordersJsonb: parsedOrdersJsonb || {},
-    rateQuotesResponseJsonb: parsedRateQuotesJsonb || {},
-    bolResponseJsonb: parsedBolJsonb || {},
-    pickupResponseJsonb: parsedPickupJsonb || {},
-  });
+  // Process each order
+  for (let i = 0; i < ordersData.length; i++) {
+    const orderData = ordersData[i];
+    
+    // Validate orderData exists
+    if (!orderData || typeof orderData !== 'object') {
+      errors.push({
+        index: i,
+        error: `Order ${i + 1}: Invalid order data format`,
+        data: orderData,
+      });
+      continue;
+    }
 
-  res.status(201).json({
-    message: 'Logistics shipped order created successfully',
-    data: order,
-  });
+    const { sku, orderOnMarketPlace, ordersJsonb, rateQuotesResponseJsonb, bolResponseJsonb, pickupResponseJsonb } = orderData;
+
+    try {
+      // Validate required fields - check for empty strings and null/undefined
+      if (!sku || sku === '' || sku === '-' || !orderOnMarketPlace || orderOnMarketPlace === '' || orderOnMarketPlace === '-') {
+        throw new ValidationError(`Order ${i + 1}: sku and orderOnMarketPlace are required (received: sku="${sku}", orderOnMarketPlace="${orderOnMarketPlace}")`);
+      }
+
+      // Parse JSON fields if they are strings
+      const parsedOrdersJsonb = typeof ordersJsonb === 'string' ? JSON.parse(ordersJsonb) : ordersJsonb;
+      const parsedRateQuotesJsonb = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
+      const parsedBolJsonb = typeof bolResponseJsonb === 'string' ? JSON.parse(bolResponseJsonb) : bolResponseJsonb;
+      const parsedPickupJsonb = typeof pickupResponseJsonb === 'string' ? JSON.parse(pickupResponseJsonb) : pickupResponseJsonb;
+
+      const order = await createLogisticsShippedOrder({
+        sku,
+        orderOnMarketPlace,
+        uploads: i === 0 ? uploads : [], // Only attach files to first order in bulk
+        ordersJsonb: parsedOrdersJsonb || {},
+        rateQuotesResponseJsonb: parsedRateQuotesJsonb || {},
+        bolResponseJsonb: parsedBolJsonb || {},
+        pickupResponseJsonb: parsedPickupJsonb || {},
+      });
+
+      createdOrders.push(order);
+    } catch (error) {
+      errors.push({
+        index: i,
+        error: error.message || 'Failed to create order',
+        data: { sku, orderOnMarketPlace },
+      });
+    }
+  }
+
+  // If all orders failed
+  if (createdOrders.length === 0 && errors.length > 0) {
+    throw new ValidationError(`Failed to create orders: ${errors.map(e => e.error).join('; ')}`);
+  }
+
+  // Return response - same structure for both single and bulk
+  if (isBulk) {
+    res.status(201).json({
+      message: `Successfully created ${createdOrders.length} of ${ordersData.length} order(s)`,
+      success: true,
+      created: createdOrders.length,
+      total: ordersData.length,
+      data: createdOrders,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } else {
+    // Single order - return same structure as before for backward compatibility
+    res.status(201).json({
+      message: 'Logistics shipped order created successfully',
+      data: createdOrders[0],
+    });
+  }
 });
 
 // GET - Get all logistics shipped orders with pagination, filtering, and sorting
@@ -267,13 +327,40 @@ export const updateLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
     updateData.ordersJsonb = typeof ordersJsonb === 'string' ? JSON.parse(ordersJsonb) : ordersJsonb;
   }
   if (rateQuotesResponseJsonb !== undefined) {
-    updateData.rateQuotesResponseJsonb = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
+    const parsedRateQuotes = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
+    // Merge with existing rateQuotesResponseJsonb if it exists
+    if (existingOrder.rateQuotesResponseJsonb && typeof existingOrder.rateQuotesResponseJsonb === 'object') {
+      updateData.rateQuotesResponseJsonb = {
+        ...existingOrder.rateQuotesResponseJsonb,
+        ...parsedRateQuotes,
+      };
+    } else {
+      updateData.rateQuotesResponseJsonb = parsedRateQuotes;
+    }
   }
   if (bolResponseJsonb !== undefined) {
-    updateData.bolResponseJsonb = typeof bolResponseJsonb === 'string' ? JSON.parse(bolResponseJsonb) : bolResponseJsonb;
+    const parsedBol = typeof bolResponseJsonb === 'string' ? JSON.parse(bolResponseJsonb) : bolResponseJsonb;
+    // Merge with existing bolResponseJsonb if it exists
+    if (existingOrder.bolResponseJsonb && typeof existingOrder.bolResponseJsonb === 'object') {
+      updateData.bolResponseJsonb = {
+        ...existingOrder.bolResponseJsonb,
+        ...parsedBol,
+      };
+    } else {
+      updateData.bolResponseJsonb = parsedBol;
+    }
   }
   if (pickupResponseJsonb !== undefined) {
-    updateData.pickupResponseJsonb = typeof pickupResponseJsonb === 'string' ? JSON.parse(pickupResponseJsonb) : pickupResponseJsonb;
+    const parsedPickup = typeof pickupResponseJsonb === 'string' ? JSON.parse(pickupResponseJsonb) : pickupResponseJsonb;
+    // Merge with existing pickupResponseJsonb if it exists
+    if (existingOrder.pickupResponseJsonb && typeof existingOrder.pickupResponseJsonb === 'object') {
+      updateData.pickupResponseJsonb = {
+        ...existingOrder.pickupResponseJsonb,
+        ...parsedPickup,
+      };
+    } else {
+      updateData.pickupResponseJsonb = parsedPickup;
+    }
   }
 
   const updatedOrder = await updateLogisticsShippedOrder(id, updateData);
