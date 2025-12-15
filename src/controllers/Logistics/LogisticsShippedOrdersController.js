@@ -18,9 +18,22 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
     throw new ValidationError('Request body is required');
   }
 
-  // Check if request body is an array (bulk) or single object
+  // Handle both FormData and JSON requests
+  // If req.body has direct fields (FormData), convert to array format
+  // If req.body is an array (bulk JSON), use as-is
+  // If req.body is an object with fields (single JSON), wrap in array
   const isBulk = Array.isArray(req.body);
-  const ordersData = isBulk ? req.body : [req.body];
+  let ordersData = [];
+  
+  if (isBulk) {
+    // Bulk JSON request
+    ordersData = req.body;
+  } else if (req.body.sku && req.body.orderOnMarketPlace) {
+    // Single FormData or JSON request - wrap in array
+    ordersData = [req.body];
+  } else {
+    throw new ValidationError('Invalid request format');
+  }
 
   // Validate ordersData is not empty
   if (!ordersData || ordersData.length === 0) {
@@ -29,12 +42,31 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
 
   // Handle file uploads (shared across all orders in bulk)
   let uploads = [];
+  
+  // Debug: Log request details
+  console.log('📥 Request received:', {
+    hasFiles: !!req.files,
+    filesLength: req.files?.length || 0,
+    files: req.files,
+    contentType: req.headers['content-type'],
+    isMultipart: req.headers['content-type']?.includes('multipart/form-data'),
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+  });
+  
   if (req.files && req.files.length > 0) {
     try {
       uploads = saveUploadedFiles(req.files);
+      console.log('✅ Files saved:', uploads.length, 'files. Paths:', uploads);
     } catch (error) {
+      console.error('❌ Error saving files:', error);
       throw error; // Re-throw AppError from service
     }
+  } else {
+    console.log('⚠️ No files in req.files. req.files:', req.files);
+    console.log('⚠️ Request headers:', {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length'],
+    });
   }
 
   const createdOrders = [];
@@ -54,7 +86,7 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
       continue;
     }
 
-    const { sku, orderOnMarketPlace, ordersJsonb, rateQuotesResponseJsonb, bolResponseJsonb, pickupResponseJsonb } = orderData;
+    const { sku, orderOnMarketPlace, ordersJsonb, rateQuotesRequestJsonb, rateQuotesResponseJsonb, bolResponseJsonb, pickupResponseJsonb, shippingType, subSKUs } = orderData;
 
     try {
       // Validate required fields - check for empty strings and null/undefined
@@ -64,86 +96,109 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
 
       // Parse JSON fields if they are strings
       const parsedOrdersJsonb = typeof ordersJsonb === 'string' ? JSON.parse(ordersJsonb) : ordersJsonb;
-      const parsedRateQuotesJsonb = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
+      const parsedRateQuotesRequestJsonb = typeof rateQuotesRequestJsonb === 'string' ? JSON.parse(rateQuotesRequestJsonb) : rateQuotesRequestJsonb;
+      const parsedRateQuotesResponseJsonb = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
+      
+      // Combine request and response into rateQuotesResponseJsonb (since schema only has this field)
+      // Structure: { xpo: { request: ..., response: ... }, estes: { request: ..., response: ... } }
+      let finalRateQuotesJsonb = {};
+      if (parsedRateQuotesRequestJsonb || parsedRateQuotesResponseJsonb) {
+        // If both exist, combine them
+        if (parsedRateQuotesRequestJsonb && parsedRateQuotesResponseJsonb) {
+          // Both have carrier keys (xpo/estes), merge them
+          Object.keys(parsedRateQuotesRequestJsonb).forEach(carrier => {
+            finalRateQuotesJsonb[carrier] = {
+              request: parsedRateQuotesRequestJsonb[carrier],
+              response: parsedRateQuotesResponseJsonb[carrier] || parsedRateQuotesResponseJsonb,
+            };
+          });
+          // Also handle if response has carrier keys but request doesn't
+          Object.keys(parsedRateQuotesResponseJsonb).forEach(carrier => {
+            if (!finalRateQuotesJsonb[carrier]) {
+              finalRateQuotesJsonb[carrier] = {
+                request: parsedRateQuotesRequestJsonb || {},
+                response: parsedRateQuotesResponseJsonb[carrier],
+              };
+            }
+          });
+        } else if (parsedRateQuotesRequestJsonb) {
+          // Only request exists
+          finalRateQuotesJsonb = parsedRateQuotesRequestJsonb;
+        } else {
+          // Only response exists (backward compatibility)
+          finalRateQuotesJsonb = parsedRateQuotesResponseJsonb;
+        }
+      }
+      
       const parsedBolJsonb = typeof bolResponseJsonb === 'string' ? JSON.parse(bolResponseJsonb) : bolResponseJsonb;
       const parsedPickupJsonb = typeof pickupResponseJsonb === 'string' ? JSON.parse(pickupResponseJsonb) : pickupResponseJsonb;
-
-      // Check if order already exists with this SKU
-      const existingOrders = await getAllLogisticsShippedOrders({
-        page: 1,
-        limit: 1,
-        where: {
-          sku: {
-            equals: sku,
-            mode: 'insensitive',
-          },
-        },
-      });
-
-      // If order exists and has shiptypes and subSKUs, skip creation
-      if (existingOrders.orders && existingOrders.orders.length > 0) {
-        const existingOrder = existingOrders.orders[0];
-        const existingOrdersJsonb = existingOrder.ordersJsonb || {};
-        const existingShiptypes = existingOrder.shippingType || existingOrdersJsonb.shiptypes || existingOrdersJsonb.shippingType;
-        const existingSubSKUs = existingOrder.subSKUs || 
-          (existingOrdersJsonb.subSKUs ? 
-            (Array.isArray(existingOrdersJsonb.subSKUs) ? existingOrdersJsonb.subSKUs : 
-             typeof existingOrdersJsonb.subSKUs === 'string' ? existingOrdersJsonb.subSKUs.split(',').map(s => s.trim()) : []) : 
-           []);
-        
-        // Check if new subSKUs are provided
-        const newSubSKUs = parsedOrdersJsonb?.subSKUs ? 
-          (Array.isArray(parsedOrdersJsonb.subSKUs) ? parsedOrdersJsonb.subSKUs : 
-           typeof parsedOrdersJsonb.subSKUs === 'string' ? parsedOrdersJsonb.subSKUs.split(',').map(s => s.trim()) : []) : 
-         [];
-        
-        // If order has shiptypes and subSKUs, and new subSKUs haven't changed, skip
-        if (existingShiptypes && existingSubSKUs.length > 0) {
-          const existingSubSKUsSorted = [...existingSubSKUs].sort().join(',');
-          const newSubSKUsSorted = newSubSKUs.length > 0 ? [...newSubSKUs].sort().join(',') : existingSubSKUsSorted;
-          
-          if (existingSubSKUsSorted === newSubSKUsSorted) {
-            // Order already exists with same data, skip creation
-            createdOrders.push(existingOrder);
-            continue;
-          } else {
-            // SubSKUs changed, update the existing order
-            const updateData = {
-              ordersJsonb: {
-                ...existingOrdersJsonb,
-                ...parsedOrdersJsonb,
-                shiptypes: parsedOrdersJsonb?.shiptypes || existingShiptypes,
-                subSKUs: parsedOrdersJsonb?.subSKUs || existingOrdersJsonb.subSKUs,
-              },
-            };
-            
-            if (parsedRateQuotesJsonb) {
-              updateData.rateQuotesResponseJsonb = parsedRateQuotesJsonb;
-            }
-            if (parsedBolJsonb) {
-              updateData.bolResponseJsonb = parsedBolJsonb;
-            }
-            if (parsedPickupJsonb) {
-              updateData.pickupResponseJsonb = parsedPickupJsonb;
-            }
-            
-            const updatedOrder = await updateLogisticsShippedOrder(existingOrder.id.toString(), updateData);
-            createdOrders.push(updatedOrder);
-            continue;
+      
+      // Parse subSKUs if it's a JSON string
+      let parsedSubSKUs = null;
+      if (subSKUs !== undefined && subSKUs !== null) {
+        if (typeof subSKUs === 'string') {
+          try {
+            parsedSubSKUs = JSON.parse(subSKUs);
+          } catch {
+            // If not JSON, treat as comma-separated string
+            parsedSubSKUs = subSKUs.split(',').map(s => s.trim()).filter(s => s.length > 0);
           }
+        } else if (Array.isArray(subSKUs)) {
+          parsedSubSKUs = subSKUs;
         }
       }
 
-      // Create new order if it doesn't exist or doesn't have shiptypes/subSKUs
+      // Merge shippingType and subSKUs into ordersJsonb
+      const finalOrdersJsonb = {
+        ...(parsedOrdersJsonb || {}),
+      };
+      
+      // Add shippingType to ordersJsonb if provided
+      if (shippingType && shippingType !== '' && shippingType !== '-') {
+        finalOrdersJsonb.shiptypes = shippingType;
+        finalOrdersJsonb.shippingType = shippingType;
+      }
+      
+      // Add subSKUs to ordersJsonb if provided
+      if (parsedSubSKUs && parsedSubSKUs.length > 0) {
+        const subSKUsString = Array.isArray(parsedSubSKUs) ? parsedSubSKUs.join(', ') : String(parsedSubSKUs);
+        finalOrdersJsonb.subSKUs = subSKUsString;
+        finalOrdersJsonb.subSKU = subSKUsString;
+      }
+      
+      // Debug log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Creating order with finalOrdersJsonb:', {
+          shippingType,
+          parsedSubSKUs,
+          finalOrdersJsonb,
+        });
+      }
+
+      // Always create new order - don't check for duplicates by SKU
+      // Each order should be unique, even if SKU and customer are the same
+      // Updates should only be done using ID (not SKU)
+      // For single orders or first order in bulk, attach files
+      const orderUploads = (ordersData.length === 1 || i === 0) ? uploads : [];
+      
+      console.log(`Creating order ${i + 1}/${ordersData.length}:`, {
+        sku,
+        orderOnMarketPlace,
+        uploadsCount: orderUploads.length,
+        uploads: orderUploads,
+      });
+      
       const order = await createLogisticsShippedOrder({
         sku,
         orderOnMarketPlace,
-        uploads: i === 0 ? uploads : [], // Only attach files to first order in bulk
-        ordersJsonb: parsedOrdersJsonb || {},
-        rateQuotesResponseJsonb: parsedRateQuotesJsonb || {},
+        uploads: orderUploads,
+        ordersJsonb: finalOrdersJsonb,
+        rateQuotesResponseJsonb: finalRateQuotesJsonb,
         bolResponseJsonb: parsedBolJsonb || {},
         pickupResponseJsonb: parsedPickupJsonb || {},
       });
+      
+      console.log(`✅ Order created with ID: ${order.id}, uploads:`, order.uploads);
 
       createdOrders.push(order);
     } catch (error) {
@@ -161,6 +216,16 @@ export const createLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
   }
 
   // Return response - same structure for both single and bulk
+  // Log created orders to verify uploads are included
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Created orders with uploads:', createdOrders.map(o => ({
+      id: o.id,
+      sku: o.sku,
+      uploads: o.uploads,
+      uploadsLength: o.uploads?.length || 0,
+    })));
+  }
+  
   if (isBulk) {
     res.status(201).json({
       message: `Successfully created ${createdOrders.length} of ${ordersData.length} order(s)`,
@@ -366,7 +431,7 @@ export const getLogisticsShippedOrderByIdHandler = asyncHandler(async (req, res,
 // PUT - Update logistics shipped order
 export const updateLogisticsShippedOrderHandler = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { sku, orderOnMarketPlace, ordersJsonb, rateQuotesResponseJsonb, bolResponseJsonb, pickupResponseJsonb } = req.body;
+  const { sku, orderOnMarketPlace, ordersJsonb, rateQuotesRequestJsonb, rateQuotesResponseJsonb, bolResponseJsonb, pickupResponseJsonb, shippingType, subSKUs } = req.body;
 
   // Check if order exists
   const existingOrder = await getLogisticsShippedOrderById(id);
@@ -390,19 +455,98 @@ export const updateLogisticsShippedOrderHandler = asyncHandler(async (req, res, 
   if (sku !== undefined) updateData.sku = sku;
   if (orderOnMarketPlace !== undefined) updateData.orderOnMarketPlace = orderOnMarketPlace;
   if (uploads.length > 0) updateData.uploads = uploads;
-  if (ordersJsonb !== undefined) {
-    updateData.ordersJsonb = typeof ordersJsonb === 'string' ? JSON.parse(ordersJsonb) : ordersJsonb;
+  
+  // Handle ordersJsonb - merge with shippingType and subSKUs if provided
+  if (ordersJsonb !== undefined || shippingType !== undefined || subSKUs !== undefined) {
+    const existingOrdersJsonb = existingOrder.ordersJsonb || {};
+    const parsedOrdersJsonb = ordersJsonb !== undefined 
+      ? (typeof ordersJsonb === 'string' ? JSON.parse(ordersJsonb) : ordersJsonb)
+      : existingOrdersJsonb;
+    
+    // Parse subSKUs if provided
+    let parsedSubSKUs = null;
+    if (subSKUs !== undefined && subSKUs !== null) {
+      if (typeof subSKUs === 'string') {
+        try {
+          parsedSubSKUs = JSON.parse(subSKUs);
+        } catch {
+          // If not JSON, treat as comma-separated string
+          parsedSubSKUs = subSKUs.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+      } else if (Array.isArray(subSKUs)) {
+        parsedSubSKUs = subSKUs;
+      }
+    }
+    
+    // Merge shippingType and subSKUs into ordersJsonb
+    updateData.ordersJsonb = {
+      ...existingOrdersJsonb,
+      ...parsedOrdersJsonb,
+    };
+    
+    // Add shippingType to ordersJsonb if provided
+    if (shippingType && shippingType !== '' && shippingType !== '-') {
+      updateData.ordersJsonb.shiptypes = shippingType;
+      updateData.ordersJsonb.shippingType = shippingType;
+    }
+    
+    // Add subSKUs to ordersJsonb if provided
+    if (parsedSubSKUs && parsedSubSKUs.length > 0) {
+      const subSKUsString = Array.isArray(parsedSubSKUs) ? parsedSubSKUs.join(', ') : String(parsedSubSKUs);
+      updateData.ordersJsonb.subSKUs = subSKUsString;
+      updateData.ordersJsonb.subSKU = subSKUsString;
+    }
+    
+    // Debug log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Updating order with ordersJsonb:', {
+        shippingType,
+        parsedSubSKUs,
+        ordersJsonb: updateData.ordersJsonb,
+      });
+    }
   }
-  if (rateQuotesResponseJsonb !== undefined) {
-    const parsedRateQuotes = typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb;
-    // Merge with existing rateQuotesResponseJsonb if it exists
+  // Handle rate quotes - combine request and response
+  if (rateQuotesRequestJsonb !== undefined || rateQuotesResponseJsonb !== undefined) {
+    const parsedRequest = rateQuotesRequestJsonb !== undefined 
+      ? (typeof rateQuotesRequestJsonb === 'string' ? JSON.parse(rateQuotesRequestJsonb) : rateQuotesRequestJsonb)
+      : null;
+    const parsedResponse = rateQuotesResponseJsonb !== undefined
+      ? (typeof rateQuotesResponseJsonb === 'string' ? JSON.parse(rateQuotesResponseJsonb) : rateQuotesResponseJsonb)
+      : null;
+    
+    // Combine request and response
+    let finalRateQuotes = {};
+    if (parsedRequest && parsedResponse) {
+      // Both exist - combine by carrier
+      Object.keys(parsedRequest).forEach(carrier => {
+        finalRateQuotes[carrier] = {
+          request: parsedRequest[carrier],
+          response: parsedResponse[carrier] || parsedResponse,
+        };
+      });
+      Object.keys(parsedResponse).forEach(carrier => {
+        if (!finalRateQuotes[carrier]) {
+          finalRateQuotes[carrier] = {
+            request: parsedRequest || {},
+            response: parsedResponse[carrier],
+          };
+        }
+      });
+    } else if (parsedRequest) {
+      finalRateQuotes = parsedRequest;
+    } else if (parsedResponse) {
+      finalRateQuotes = parsedResponse;
+    }
+    
+    // Merge with existing if it exists
     if (existingOrder.rateQuotesResponseJsonb && typeof existingOrder.rateQuotesResponseJsonb === 'object') {
       updateData.rateQuotesResponseJsonb = {
         ...existingOrder.rateQuotesResponseJsonb,
-        ...parsedRateQuotes,
+        ...finalRateQuotes,
       };
     } else {
-      updateData.rateQuotesResponseJsonb = parsedRateQuotes;
+      updateData.rateQuotesResponseJsonb = finalRateQuotes;
     }
   }
   if (bolResponseJsonb !== undefined) {
