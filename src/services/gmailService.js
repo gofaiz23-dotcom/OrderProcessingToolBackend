@@ -3,6 +3,10 @@ import { gmail, googleUserEmail } from '../config/googleClient.js';
 const DEFAULT_MAX_RESULTS = 20;
 const HEADER_WHITELIST = ['From', 'To', 'Subject', 'Date', 'Cc', 'Bcc'];
 
+/** Gmail-like limits */
+const MAX_ATTACHMENTS = 50;
+const MAX_TOTAL_ATTACHMENT_SIZE = 25 * 1024 * 1024; // 25 MB
+
 const decodeBase64Url = (data) =>
   Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
 
@@ -44,13 +48,13 @@ const extractMessageContent = async (messageId, payload) => {
               .then(({ data }) => ({
                 filename: part.filename,
                 mimeType,
-                size: data.size || body.size,
+                size: data.size || body.size || 0,
                 contentBase64: data.data,
               }))
           : Promise.resolve({
               filename: part.filename,
               mimeType,
-              size: body.size,
+              size: body.size || 0,
               contentBase64: body.data,
             }),
       );
@@ -113,7 +117,31 @@ export const getInboxMessages = async (maxResults) =>
 export const getSentMessages = async (maxResults) =>
   listMessages({ labelIds: ['SENT'], maxResults });
 
+/**
+ * Validate attachments like Gmail
+ */
+const validateAttachments = (attachments = []) => {
+  if (attachments.length > MAX_ATTACHMENTS) {
+    throw new Error(`Maximum ${MAX_ATTACHMENTS} attachments allowed`);
+  }
+
+  const totalSize = attachments.reduce(
+    (sum, file) => sum + (file.size || 0),
+    0,
+  );
+
+  if (totalSize > MAX_TOTAL_ATTACHMENT_SIZE) {
+    throw new Error(
+      `Total attachment size exceeds 25MB (Current: ${(totalSize / 1024 / 1024).toFixed(
+        2,
+      )} MB)`,
+    );
+  }
+};
+
 const buildEmailBody = ({ to, cc, bcc, subject, text, html, attachments }) => {
+  validateAttachments(attachments);
+
   const boundary = `mixed-${Date.now()}`;
   const lines = [
     'MIME-Version: 1.0',
@@ -121,60 +149,46 @@ const buildEmailBody = ({ to, cc, bcc, subject, text, html, attachments }) => {
     `From: ${googleUserEmail}`,
     `Subject: ${subject}`,
   ];
-  
-  // Add CC header if present
-  if (cc && cc.length > 0) {
-    lines.push(`Cc: ${cc}`);
-  }
-  
-  // Add BCC header if present
-  if (bcc && bcc.length > 0) {
-    lines.push(`Bcc: ${bcc}`);
-  }
-  
+
+  if (cc) lines.push(`Cc: ${cc}`);
+  if (bcc) lines.push(`Bcc: ${bcc}`);
+
   lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
   lines.push('');
 
-  // If both text and html exist, wrap them in multipart/alternative
   if (text && html) {
     const alternativeBoundary = `alt-${Date.now()}`;
     lines.push(`--${boundary}`);
     lines.push(`Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`);
     lines.push('');
-    // Add text/plain part
+
     lines.push(`--${alternativeBoundary}`);
     lines.push('Content-Type: text/plain; charset="UTF-8"');
-    lines.push('Content-Transfer-Encoding: 7bit');
     lines.push('');
     lines.push(text);
     lines.push('');
-    // Add text/html part
+
     lines.push(`--${alternativeBoundary}`);
     lines.push('Content-Type: text/html; charset="UTF-8"');
-    lines.push('Content-Transfer-Encoding: 7bit');
     lines.push('');
     lines.push(html);
     lines.push('');
+
     lines.push(`--${alternativeBoundary}--`);
   } else if (html) {
-    // Only HTML
     lines.push(`--${boundary}`);
     lines.push('Content-Type: text/html; charset="UTF-8"');
-    lines.push('Content-Transfer-Encoding: 7bit');
     lines.push('');
     lines.push(html);
     lines.push('');
   } else if (text) {
-    // Only text
     lines.push(`--${boundary}`);
     lines.push('Content-Type: text/plain; charset="UTF-8"');
-    lines.push('Content-Transfer-Encoding: 7bit');
     lines.push('');
     lines.push(text);
     lines.push('');
   }
 
-  // Add attachments
   (attachments || []).forEach((file) => {
     lines.push(`--${boundary}`);
     lines.push(`Content-Type: ${file.mimeType}`);
@@ -187,10 +201,22 @@ const buildEmailBody = ({ to, cc, bcc, subject, text, html, attachments }) => {
 
   lines.push(`--${boundary}--`);
 
-  return Buffer.from(lines.join('\r\n')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return Buffer.from(lines.join('\r\n'))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 };
 
-export const sendGmailMessage = async ({ to, cc, bcc, subject, text, html, attachments }) => {
+export const sendGmailMessage = async ({
+  to,
+  cc,
+  bcc,
+  subject,
+  text,
+  html,
+  attachments,
+}) => {
   const raw = buildEmailBody({ to, cc, bcc, subject, text, html, attachments });
 
   return gmail.users.messages.send({
@@ -198,4 +224,3 @@ export const sendGmailMessage = async ({ to, cc, bcc, subject, text, html, attac
     requestBody: { raw },
   });
 };
-
