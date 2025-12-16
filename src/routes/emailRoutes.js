@@ -5,7 +5,7 @@ import { getInbox, getSent, sendEmail } from '../controllers/emailController.js'
 const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 5 },
+  limits: { fileSize: 25 * 1024 * 1024, files: 50 },
 });
 
 router.get('/inbox', getInbox);
