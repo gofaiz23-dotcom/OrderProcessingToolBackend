@@ -189,7 +189,65 @@ const buildEmailBody = ({ to, cc, bcc, subject, text, html, attachments }) => {
     lines.push('');
   }
 
-  (attachments || []).forEach((file) => {
+  // Separate inline images (referenced in HTML with cid:) from regular attachments
+  const inlineImages = new Map();
+  const regularAttachments = [];
+  
+  if (html) {
+    // Extract all cid: references from HTML
+    const cidMatches = html.match(/cid:([^\s"'>]+)/gi) || [];
+    const cidFiles = new Set();
+    cidMatches.forEach(match => {
+      const filename = match.replace(/^cid:/i, '').trim();
+      if (filename) {
+        cidFiles.add(filename.toLowerCase());
+      }
+    });
+    
+    // Helper function to normalize filename for comparison
+    const normalizeFilename = (name) => name.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+    
+    // Categorize attachments
+    (attachments || []).forEach((file) => {
+      const fileKey = file.filename.toLowerCase();
+      const normalizedFileKey = normalizeFilename(file.filename);
+      
+      // Check if this file is referenced in HTML with cid:
+      // Match by original filename or sanitized filename
+      const isInline = cidFiles.has(fileKey) || 
+                       cidFiles.has(normalizedFileKey) ||
+                       Array.from(cidFiles).some(cid => {
+                         const normalizedCid = normalizeFilename(cid);
+                         return normalizedCid === normalizedFileKey || normalizedCid === fileKey;
+                       });
+      
+      if (isInline) {
+        inlineImages.set(normalizedFileKey, file);
+      } else {
+        regularAttachments.push(file);
+      }
+    });
+  } else {
+    // No HTML, so all attachments are regular
+    regularAttachments.push(...(attachments || []));
+  }
+  
+  // Add inline images first (for proper email client rendering)
+  inlineImages.forEach((file) => {
+    lines.push(`--${boundary}`);
+    lines.push(`Content-Type: ${file.mimeType}`);
+    lines.push('Content-Transfer-Encoding: base64');
+    lines.push('Content-Disposition: inline');
+    // Use sanitized filename as Content-ID (must match the cid: reference in HTML)
+    const contentId = file.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    lines.push(`Content-ID: <${contentId}>`);
+    lines.push('');
+    lines.push(file.contentBase64);
+    lines.push('');
+  });
+  
+  // Add regular attachments
+  regularAttachments.forEach((file) => {
     lines.push(`--${boundary}`);
     lines.push(`Content-Type: ${file.mimeType}`);
     lines.push('Content-Transfer-Encoding: base64');
