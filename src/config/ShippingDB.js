@@ -250,7 +250,7 @@ export const estes = [
     jsonb: {
       baseUrl: estesCommon.baseUrl,
       createPickupRequest: {
-        url: `${estesCommon.baseUrl}/v1/pickup-request`,
+        url: `${estesCommon.baseUrl}/v1/pickup-requests`,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -269,109 +269,33 @@ export const estes = [
                 stateProvince: null, // string
                 postalCode: null, // string
                 postalCode4: null, // string
-                countryAbbrev: null, // string (e.g., "USA")
+                countryAbbrev: null, // string (e.g., "US")
               },
             },
-            shipperContacts: {
-              shipperContact: [
-                {
-                  contactInfo: {
-                    name: {
-                      firstName: null, // string
-                      middleName: null, // string
-                      lastName: null, // string
-                    },
-                    email: null, // string
-                    phone: {
-                      areaCode: null, // number
-                      number: null, // number
-                      extension: null, // number
-                    },
-                    fax: {
-                      areaCode: null, // number
-                      number: null, // number
-                    },
-                    receiveNotifications: null, // string (e.g., "Y", "N")
-                    notificationMethod: null, // string (e.g., "EMAIL")
-                  },
-                },
-              ],
-            },
           },
-          requestAction: null, // string (e.g., "CREATE")
-          paymentTerms: null, // string (e.g., "PREPAID")
+          requestAction: null, // string (e.g., "LL", "CREATE")
+          paymentTerms: null, // string (e.g., "PPD", "PREPAID")
           pickupDate: null, // string (YYYY-MM-DD)
-          pickupStartTime: null, // string (HH:MM)
-          pickupEndTime: null, // string (HH:MM)
+          pickupStartTime: null, // string (HHMM format, e.g., "0800")
+          pickupEndTime: null, // string (HHMM format, e.g., "1700")
           totalPieces: null, // string or number
           totalWeight: null, // string or number
           totalHandlingUnits: null, // string or number
           hazmatFlag: null, // string (e.g., "Y", "N")
-          expeditedCode: null, // string
-          whoRequested: null, // string (e.g., "THIRD_PARTY")
-          trailer: null, // array
-          referenceNumbers: {
-            referenceNumber: [
-              {
-                referenceInfo: {
-                  type: null, // string (e.g., "PRO", "PON", "BOL", "EUI", "LDN", "SNO")
-                  value: null, // string
-                  required: null, // string (e.g., "Y", "N")
-                  totalPieces: null, // number
-                  totalWeight: null, // number
-                },
-              },
-            ],
-          },
-          commodities: {
-            commodity: [
-              {
-                commodityInfo: {
-                  code: null, // string
-                  packageCode: null, // string (e.g., "PAT")
-                  description: null, // string
-                  hazmat: {
-                    hazmatCode: null, // string
-                    hazmatFlag: null, // string (e.g., "Y", "N")
-                  },
-                  pieces: null, // string or number
-                  weight: null, // string or number
-                  nmfcNumber: null, // string
-                  nmfcSubNumber: null, // string
-                },
-              },
-            ],
-          },
-          comments: {
-            comment: [
-              {
-                commentInfo: {
-                  type: null, // string (e.g., "PICKUP_INSTRUCTIONS")
-                  commentText: null, // string
-                },
-              },
-            ],
-          },
-          consignee: {
-            accountCode: null, // string
-            accountName: null, // string
-          },
-          thirdParty: {
-            accountCode: null, // string
-            accountName: null, // string
-          },
+          expeditedCode: null, // string (e.g., "G")
+          whoRequested: null, // string (e.g., "S", "THIRD_PARTY")
           addresses: {
             address: [
               {
                 addressInfo: {
-                  addressType: null, // string (e.g., "PICKUP", "DOCK")
+                  addressType: null, // string (e.g., "C", "PICKUP", "DOCK")
                   addressLine1: null, // string
                   addressLine2: null, // string
                   city: null, // string
                   stateProvince: null, // string
                   postalCode: null, // string
                   postalCode4: null, // string
-                  countryAbbrev: null, // string (e.g., "USA")
+                  countryAbbrev: null, // string (e.g., "US")
                 },
               },
             ],
@@ -380,7 +304,7 @@ export const estes = [
             contact: [
               {
                 contactInfo: {
-                  contactType: null, // string (e.g., "REQUESTER", "DOCK")
+                  contactType: null, // string (e.g., "S", "REQUESTER", "DOCK")
                   name: {
                     firstName: null, // string
                     middleName: null, // string
@@ -397,7 +321,22 @@ export const estes = [
                     number: null, // number
                   },
                   receiveNotifications: null, // string (e.g., "Y", "N")
-                  notificationMethod: null, // string (e.g., "EMAIL")
+                  notificationMethod: null, // string (e.g., "E", "EMAIL")
+                },
+              },
+            ],
+          },
+          commodities: {
+            commodity: [
+              {
+                commodityInfo: {
+                  code: null, // string (e.g., "MISC")
+                  packageCode: null, // string (e.g., "BX", "PAT")
+                  description: null, // string
+                  pieces: null, // string or number
+                  weight: null, // string or number
+                  nmfcNumber: null, // string
+                  nmfcSubNumber: null, // string
                 },
               },
             ],
@@ -406,7 +345,7 @@ export const estes = [
             notification: [
               {
                 notificationInfo: {
-                  type: null, // string (e.g., "REJECTED", "ACCEPTED", "COMPLETED")
+                  type: null, // string (e.g., "RCV", "REJECTED", "ACCEPTED", "COMPLETED")
                 },
               },
             ],
