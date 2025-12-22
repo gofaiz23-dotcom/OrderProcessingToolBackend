@@ -15,6 +15,9 @@ export const createPickupRequest = async (companyName, bearerToken, requestBody)
 
   // Merge bodyTemplate with user's request body
   const mergedBody = mergeBodyWithTemplate(pickupConfig.bodyTemplate, requestBody);
+  
+  // Log merged body for debugging (truncated for large payloads)
+  console.log('Merged body (first 2000 chars):', JSON.stringify(mergedBody, null, 2).substring(0, 2000));
 
   // Prepare headers with Bearer token
   const headers = {
@@ -46,6 +49,14 @@ export const createPickupRequest = async (companyName, bearerToken, requestBody)
   }
 
   // Make API call to shipping company
+  console.log('Making request to Estes API:', {
+    url: pickupConfig.url,
+    method: pickupConfig.method,
+    headers: { ...headers, Authorization: headers.Authorization ? 'Bearer [REDACTED]' : undefined },
+    bodyLength: body.length,
+    bodyPreview: typeof body === 'string' ? body.substring(0, 500) : JSON.stringify(body).substring(0, 500),
+  });
+
   const response = await fetch(pickupConfig.url, {
     method: pickupConfig.method,
     headers,
@@ -53,9 +64,41 @@ export const createPickupRequest = async (companyName, bearerToken, requestBody)
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    let errorData = {};
+    let errorText = '';
+    
+    try {
+      errorText = await response.clone().text();
+      console.error('Estes API Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText: errorText.substring(0, 1000),
+      });
+      
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || response.statusText, rawText: errorText };
+      }
+    } catch (e) {
+      console.error('Error reading Estes API error response:', e);
+      errorData = { message: response.statusText };
+    }
+    
+    // Log the merged body that was sent (for debugging)
+    console.error('Merged body sent to Estes API:', JSON.stringify(mergedBody, null, 2).substring(0, 2000));
+    
+    // Extract detailed error message with validation failures
+    let errorMessage = errorData.message || errorData.error?.message || errorData.details || ErrorMessages.API_ERROR(response.status);
+    
+    // Add validation failures if available
+    if (errorData.error?.validationFailures && Array.isArray(errorData.error.validationFailures)) {
+      const failures = errorData.error.validationFailures.map(f => `${f.field}: ${f.description}`).join('; ');
+      errorMessage = `${errorMessage} - Validation failures: ${failures}`;
+    }
+    
     throw new AppError(
-      errorData.message || ErrorMessages.API_ERROR(response.status),
+      errorMessage,
       response.status
     );
   }
@@ -71,15 +114,21 @@ const mergeBodyWithTemplate = (template, userBody) => {
   const mergeRecursive = (templateObj, userObj) => {
     for (const key in userObj) {
       if (userObj[key] !== null && userObj[key] !== undefined) {
-        if (
+        // Handle arrays - replace template array with user array
+        if (Array.isArray(userObj[key])) {
+          templateObj[key] = userObj[key];
+        }
+        // Handle nested objects - recursively merge
+        else if (
           typeof userObj[key] === 'object' &&
-          !Array.isArray(userObj[key]) &&
           templateObj[key] &&
           typeof templateObj[key] === 'object' &&
           !Array.isArray(templateObj[key])
         ) {
           mergeRecursive(templateObj[key], userObj[key]);
-        } else {
+        }
+        // Handle primitive values - replace template value
+        else {
           templateObj[key] = userObj[key];
         }
       }
